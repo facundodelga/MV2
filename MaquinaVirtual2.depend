@@ -1,0 +1,20 @@
+# depslib dependency file v1.0
+1681504127 source:c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\operandos.c
+
+1681504127 c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\operandos.h
+
+1681493496 source:c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\funciones.c
+
+1681505129 source:c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\operaciones.c
+	"Operaciones.h"
+
+1681504156 source:c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\main.c
+	<stdio.h>
+	<stdlib.h>
+	"Funciones.h"
+	"Operaciones.h"
+
+1681493496 c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\funciones.h
+
+1681504127 c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\operaciones.h
+
