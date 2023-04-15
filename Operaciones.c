@@ -47,18 +47,18 @@ int getMem(TMV *mv,TOperando o){
 
     if(o.segmentoReg == 0x11){ //segmento 2 bytes
             //      "|=" me haces re mal abuela la concha de tu madre
-        num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento] << 8;
-        num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 1];
+        num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento] << 8;
+        num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 1];
     }else{
         if(o.segmentoReg == 0x00){ //segmento de 4 bytes
 
-            num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento] << 24;
-            num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 1] << 16;
-            num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 2] << 8;
-            num |= mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 3];
+            num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento] << 24;
+            num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 1] << 16;
+            num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 2] << 8;
+            num |= mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 3];
 
         }else //segmento de 1 byte
-            num = mv->registros[mv->TDD[0] + o.registro + o.desplazamiento];
+            num = mv->registros[mv->TDD[1] + o.registro + o.desplazamiento];
     }
 
     return num;
@@ -140,18 +140,18 @@ void setOp(TMV *mv,TOperando o,int num){
         case 0x00: //tipo memoria
 
             if(o.segmentoReg == 0x00){ //segmento de 4 bytes
-                mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento] = (char)((num >> 24) & 0xFF);
-                mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 1] = (char)((num >> 16) & 0xFF);
-                mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 2] = (char)((num >> 8) & 0xFF);
-                mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 3] = (char)(num & 0xFF);
+                mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento] = (char)((num >> 24) & 0xFF);
+                mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 1] = (char)((num >> 16) & 0xFF);
+                mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 2] = (char)((num >> 8) & 0xFF);
+                mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 3] = (char)(num & 0xFF);
 
             }else{
                 if(o.segmentoReg == 0x11){ //segmento 2 bytes
-                    mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento] = (char) (num >> 8) & 0xFF;
-                    mv->memoria[mv->TDD[0] + o.registro + o.desplazamiento + 1] = (char) num & 0xFF;
+                    mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento] = (char) (num >> 8) & 0xFF;
+                    mv->memoria[mv->TDD[1] + o.registro + o.desplazamiento + 1] = (char) num & 0xFF;
 
                 }else //segmento de 1 byte
-                    mv->registros[mv->TDD[0] + o.registro + o.desplazamiento] = (char) num;
+                    mv->registros[mv->TDD[1] + o.registro + o.desplazamiento] = (char) num;
             }
             break;
 

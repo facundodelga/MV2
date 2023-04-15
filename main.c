@@ -3,11 +3,14 @@
 #include "Funciones.h"
 #include "Operaciones.h"
 
+
+
+
 void cargaVectorDeFunciones(TOperaciones *);
 
 int main(){
     FILE *archBinario;
-    char operacion;
+    char operacion,version;
     TOperando operandos[2];
     char *header =(char *)malloc(sizeof(char) * 6);
     TMV mv;
@@ -16,13 +19,17 @@ int main(){
     archBinario=fopen("fact.vmx","rb");
 
     fgets(header,6*sizeof(char),archBinario); //Obtengo el header
-    fread(&mv.TDD[0],sizeof(int),1,archBinario); //Leo el tamaño del codigo y asigno al DS
-
+    printf("%s\n",header);
+    fread(&version,sizeof(char),1,archBinario);
+    printf("%s\n",intToHex(version));
+    fread(&mv.TDD[0],sizeof(unsigned short int),1,archBinario); //Leo el tamaño del codigo y asigno al DS
+    mv.TDD[1] = mv.TDD[0] + 1;
+    printf("%d\n",mv.TDD[0]);
+    printf("%d\n",mv.TDD[1]);
     int numInstrucciones = 0;
 
-    while(!feof(archBinario)){ //se lee el archivo binario para cargarlo en la memoria
-        fread(&mv.memoria[numInstrucciones++],sizeof(char),1,archBinario);
-    }
+    while(fread(&mv.memoria[numInstrucciones],sizeof(char),1,archBinario)) //se lee el archivo binario para cargarlo en la memoria
+        numInstrucciones++;
 
     fclose(archBinario);
 

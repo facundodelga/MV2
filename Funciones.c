@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "Funciones.h"
+#include <string.h>
 
 void sumaIP(int *ip,char operando1,char operando2){
     *ip += 1 + !operando1 + !operando2;
@@ -21,3 +25,16 @@ void leePrimerByte(char instruccion,char *operando1,char *operando2,char *operac
         }
     }
 }
+
+char* intToHex(int n) {
+    char* hex = (char*)malloc(sizeof(char) * 9);
+    sprintf(hex, "%08X", n);  // Convierte el entero en hexadecimal
+    if (n < 0) {
+        // Si el número es negativo, se le agrega el signo "-"
+        memmove(hex+1, hex, sizeof(char) * 8);
+        hex[0] = '-';
+    }
+    return hex;
+}
+
+//char* instruccionDissasembler(int ip,int );

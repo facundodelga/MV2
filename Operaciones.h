@@ -1,5 +1,5 @@
 typedef struct {
-    char *memoria;
+    char memoria[16384];
     int TDD[8];
     int registros[16]; // 16 registros de 4 bytes
 }TMV;
