@@ -45,3 +45,4 @@ void LDH(TMV *mv, TOperando *op);
 void RND(TMV *mv, TOperando *op);
 void NOT(TMV *mv, TOperando *op);
 void STOP(TMV *mv, TOperando *op);
+void setCC(TMV *mv,int numero);
