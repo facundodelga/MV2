@@ -11,14 +11,32 @@ typedef struct{
     int desplazamiento; //desplazamiento de memoria y tipo inmediato
 }TOperando;
 
+typedef struct {
+    unsigned int posicion;
+    char cantidad;
+    char tamanio;
+    char formato;
+}TSistema;
+
 int getOp(TMV *,TOperando );
 void setOp(TMV *,TOperando ,int );
 int getReg(TMV *,TOperando );
 int getMem(TMV *,TOperando );
 void recuperaOperandos(TMV *,TOperando *,int ); //mv, vector de operandos, ip
+void sumaIP(int *ip,char operando1,char operando2);
+char* intToHex2B(int n);
+char* decToOctal(int num);
+int hextoint(char* hex);
+int octtoint(char* oct);
 
+//definicion protos funcion para el sistema
 
+void readSys(TMV *mv,TSistema aux);
+void writeSys(TMV *mv,TSistema aux);
+
+//definicion de tipo funcion para los vectores de funciones
 typedef void (*TOperaciones)(TMV *,TOperando *);
+typedef void (*t_funcionSys)(TMV *,TSistema);
 
 void MOV(TMV *mv, TOperando *op);
 void ADD(TMV *mv, TOperando *op);
@@ -46,3 +64,4 @@ void RND(TMV *mv, TOperando *op);
 void NOT(TMV *mv, TOperando *op);
 void STOP(TMV *mv, TOperando *op);
 void setCC(TMV *mv,int numero);
+
