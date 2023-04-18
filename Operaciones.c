@@ -185,6 +185,10 @@ void setOp(TMV *mv,TOperando o,int num){
             }
 
             break;
+        default:
+            printf("NO SE PUEDE ASIGNAR A UN TIPO INMEDIATO!... BYE BYE");
+            STOP(mv,&o);
+            break;
     }
 }
 
@@ -231,106 +235,9 @@ char* intToHex4B(int n) {
     return hex;
 }
 
-int hextoint(char* hex) {
-    int len = strlen(hex);
-    int decimal = 0;
-    int base = 1;
-    int i;
-    char sign = '0';
-
-    if (hex[0] >= 'a' && hex[0] <= 'f') {
-        sign = 'f';
-    }
-
-    for (i = len - 1; i >= 0; i--) {
-        if (hex[i] >= '0' && hex[i] <= '9') {
-            decimal += (hex[i] - '0') * base;
-        }
-        else if (hex[i] >= 'a' && hex[i] <= 'f') {
-            decimal += (hex[i] - 'a' + 10) * base;
-        }
-        else if (hex[i] >= 'A' && hex[i] <= 'F') {
-            decimal += (hex[i] - 'A' + 10) * base;
-        }
-        base *= 16;
-    }
-
-    if (sign == 'f') {
-        int sign_bits = (sizeof(decimal) * 8) - log2(decimal) - 1;
-        decimal |= (1 << sign_bits) - 1;
-    }
-
-    return decimal;
-}
-
-char* decToOctal(int num) {
-    int octalNum[100];
-    int i = 0;
-    int sign = (num < 0) ? -1 : 1; // Guarda el signo del número.
-
-    num = abs(num); // Convierte el número a su valor absoluto.
-
-    // Divide el número sucesivamente por 8 y almacena el resto en un array.
-    while (num != 0) {
-        octalNum[i] = num % 8;
-        num = num / 8;
-        i++;
-    }
-
-    // Agrega el signo al resultado si es negativo.
-    if (sign == -1) {
-        i++; // Aumenta el contador para incluir el signo negativo.
-    }
-
-    // Crea la cadena de caracteres que representa el número octal.
-    char* result = (char*)malloc((i+1) * sizeof(char)); // Reserva memoria para la cadena resultante.
-    int j = 0;
-
-    if (sign == -1) {
-        result[j++] = '-';
-    }
-
-    // Agrega los dígitos del número octal a la cadena.
-    for (int k = i - 1; k >= 0; k--) {
-        result[j++] = octalNum[k] + '0';
-    }
-    result[j] = '\0'; // Agrega el caracter nulo al final de la cadena.
-
-    return result;
-}
-
-int octtoint(char* oct) {
-    int len = strlen(oct);
-    int decimal = 0;
-    int base = 1;
-    int i;
-    char sign = '0';
-
-    if (oct[0] == '-') {
-        sign = '7';
-    }
-
-    for (i = len - 1; i >= 0; i--) {
-        if (oct[i] >= '0' && oct[i] <= '7') {
-            decimal += (oct[i] - '0') * base;
-        }
-        base *= 8;
-    }
-
-    if (sign == '7') {
-        int sign_bits = (sizeof(decimal) * 8) - log2(decimal) - 1;
-        decimal |= (1 << sign_bits) - 1;
-    }
-
-    return decimal;
-}
-
-
 void readSys(TMV *mv,TSistema aux){
     int i = 0;
     int dato;
-    char c;
-    char stOct[12],stHex[9];
     TOperando auxOp;
     auxOp.registro = 13;
     auxOp.desplazamiento = 0;
@@ -343,24 +250,24 @@ void readSys(TMV *mv,TSistema aux){
     while(i<aux.cantidad){
         switch (aux.formato){
         case 1:
-            printf("[%s] ",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento));
+            printf("[%04X] ",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento);
             scanf("%d",&dato);
             setOp(mv,auxOp,dato);
             break;
         case 2:
-            printf("[%s] ",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento));
-            scanf("%c",&c);
-            setOp(mv,auxOp,c);
+            printf("[%04X] ",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento);
+            scanf("%c",&dato);
+            setOp(mv,auxOp,dato);
             break;
         case 4:
-            printf("[%s] ",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento));
-            scanf("%s",stOct);
-            setOp(mv,auxOp,hextoint(stOct));
+            printf("[%04X] ",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento);
+            scanf("%o",&dato);
+            setOp(mv,auxOp,dato);
             break;
         case 8:
-            printf("[%s] ",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento));
-            scanf("%s",stHex);
-            setOp(mv,auxOp,hextoint(stHex));
+            printf("[%04X] ",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento);
+            scanf("%X",&dato);
+            setOp(mv,auxOp,dato);
             break;
         }
         i++;
@@ -383,16 +290,16 @@ void writeSys(TMV *mv,TSistema aux){
     while(i < aux.cantidad){
         switch (aux.formato){
         case 1:
-            printf("[%s] %d\n",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento),getMem(mv,auxOp));
+            printf("[%04X] %d\n",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento,getMem(mv,auxOp));
             break;
         case 2:
-            printf("[%s] %c\n",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento),getMem(mv,auxOp));
+            printf("[%04X] %c\n",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento,getMem(mv,auxOp));
             break;
         case 4:
-            printf("[%s] %s\n",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento),decToOctal(getMem(mv,auxOp)));
+            printf("[%04X] %o\n",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento,getMem(mv,auxOp));
             break;
         case 8:
-            printf("[%s] %s\n",intToHex2B(mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento),intToHex4B(getMem(mv,auxOp)));
+            printf("[%04X] %X\n",mv->registros[13] - mv->TDD[1] + auxOp.desplazamiento,getMem(mv,auxOp));
             break;
         }
         i++;
@@ -422,7 +329,6 @@ void sumaIP(int *ip,char operando1,char operando2){
         }else{
             if(operando2 == 0x2) // registro
                 op2= 1;
-
             else
                 op2 = 0;
         }
@@ -623,3 +529,310 @@ void setCC(TMV *mv,int numero){
     if(numero>0)
         mv->registros[8] = 0x00000000;
 }
+
+
+
+//DISSASEMBLER
+
+void cargaVectorDisassembler(t_funcionDisassembler *v){
+    //operaciones de 2 operandos
+    v[0x0] = imprimeMOV;
+    v[0x1] = imprimeADD;
+    v[0x2] = imprimeSUB;
+    v[0x3] = imprimeSWAP;
+    v[0x4] = imprimeMUL;
+    v[0x5] = imprimeDIV;
+    v[0x6] = imprimeCMP;
+    v[0x7] = imprimeSHL;
+    v[0x8] = imprimeSHR;
+    v[0x9] = imprimeAND;
+    v[0xA] = imprimeOR;
+    v[0xB] = imprimeXOR;
+    //operaciones de 1 operandos
+    v[0x30] = imprimeSYS;
+    v[0x31] = imprimeJMP;
+    v[0x32] = imprimeJZ;
+    v[0x33] = imprimeJP;
+    v[0x34] = imprimeJN;
+    v[0x35] = imprimeJNZ;
+    v[0x36] = imprimeJNP;
+    v[0x37] = imprimeJNN;
+    v[0x38] = imprimeLDL;
+    v[0x39] = imprimeLDH;
+    v[0x3A] = imprimeRND;
+    v[0x3B] = imprimeNOT;
+    //operaciones sin operandos
+    v[0xF0] = imprimeSTOP;
+}
+
+
+void obtieneTAG(char reg,char segmento,char nombre[]){
+    switch (reg){
+    case 0x00:strcpy(nombre,"CS");
+        break;
+    case 0x01:strcpy(nombre,"DS");
+        break;
+    case 0x02:strcpy(nombre,".");
+        break;
+    case 0x03:strcpy(nombre,".");
+        break;
+    case 0x04:strcpy(nombre,".");
+        break;
+    case 0x05:strcpy(nombre,"IP");
+        break;
+    case 0x06:strcpy(nombre,".");
+        break;
+    case 0x07:strcpy(nombre,".");
+        break;
+    case 0x08:strcpy(nombre,"CC");
+        break;
+    case 0x09:strcpy(nombre,"AC");
+        break;
+    case 0x0A:
+        switch (segmento){
+                case 0:strcpy(nombre,"EAX");
+                    break;
+                case 1:strcpy(nombre,"AL");
+                    break;
+                case 2:strcpy(nombre,"AH");
+                    break;
+                case 3:strcpy(nombre,"AX");
+                    break;
+        }
+        break;
+    case 0x0B:
+        switch (segmento){
+                case 0:strcpy(nombre,"EBX");
+                    break;
+                case 1:strcpy(nombre,"BL");
+                    break;
+                case 2:strcpy(nombre,"BH");
+                    break;
+                case 3:strcpy(nombre,"BX");
+                    break;
+        }
+        break;
+    case 0x0C:
+        switch (segmento){
+                case 0:strcpy(nombre,"ECX");
+                    break;
+                case 1:strcpy(nombre,"CL");
+                    break;
+                case 2:strcpy(nombre,"CH");
+                    break;
+                case 3:strcpy(nombre,"CX");
+                    break;
+        }
+        break;
+    case 0x0D:
+        switch (segmento){
+                case 0:strcpy(nombre,"EDX");
+                    break;
+                case 1:strcpy(nombre,"DL");
+                    break;
+                case 2:strcpy(nombre,"DH");
+                    break;
+                case 3:strcpy(nombre,"DX");
+                    break;
+        }
+        break;
+    case 0x0E:
+        switch (segmento){
+            case 0:strcpy(nombre,"EEX");
+                break;
+            case 1:strcpy(nombre,"EL");
+                break;
+            case 2:strcpy(nombre,"EH");
+                break;
+            case 3:strcpy(nombre,"EX");
+                break;
+        }
+        break;
+    case 0x0F:
+        switch (segmento){
+                case 0:strcpy(nombre,"EFX");
+                    break;
+                case 1:strcpy(nombre,"FL");
+                    break;
+                case 2:strcpy(nombre,"FH");
+                    break;
+                case 3:strcpy(nombre,"FX");
+                    break;
+        }
+        break;
+    }
+}
+
+void imprimeOperando(TOperando op){
+    char nombre[5];
+    switch (op.tipo){
+
+    case 0x00://memoria
+              obtieneTAG(op.registro,op.segmentoReg,nombre);
+              printf("[%s + %d]",nombre,op.desplazamiento);
+        break;
+    case 0x01://inmediato
+              printf(" %d",op.desplazamiento);
+        break;
+    case 0x02://registro
+              obtieneTAG(op.registro,op.segmentoReg,nombre);
+              printf("%s ",nombre);
+        break;
+    }
+}
+
+void imprimeMOV(TInstruccionDisassembler disInstruccion){
+    printf("MOV ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeADD(TInstruccionDisassembler disInstruccion){
+    printf("ADD ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeSUB(TInstruccionDisassembler disInstruccion){
+    printf("SUB ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+
+void imprimeSWAP(TInstruccionDisassembler disInstruccion){
+    printf("SWAP ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+
+void imprimeMUL(TInstruccionDisassembler disInstruccion){
+    printf("MUL ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+
+void imprimeDIV(TInstruccionDisassembler disInstruccion){
+    printf("DIV ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+
+void imprimeCMP(TInstruccionDisassembler disInstruccion){
+    printf("CMP ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeSHL(TInstruccionDisassembler disInstruccion){
+    printf("SHL ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeSHR(TInstruccionDisassembler disInstruccion){
+    printf("SHR ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeAND(TInstruccionDisassembler disInstruccion){
+    printf("AND ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeOR(TInstruccionDisassembler disInstruccion){
+    printf("OR ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeXOR(TInstruccionDisassembler disInstruccion){
+    printf("XOR ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf(",");
+    imprimeOperando(disInstruccion.operandos[1]);
+    printf("\n");
+}
+void imprimeSYS(TInstruccionDisassembler disInstruccion){
+    printf("SYS ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJMP(TInstruccionDisassembler disInstruccion){
+    printf("JMP ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJZ(TInstruccionDisassembler disInstruccion){
+    printf("JZ ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJP(TInstruccionDisassembler disInstruccion){
+    printf("JP ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJN(TInstruccionDisassembler disInstruccion){
+    printf("JN ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJNZ(TInstruccionDisassembler disInstruccion){
+    printf("JNZ ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJNP(TInstruccionDisassembler disInstruccion){
+    printf("JNP ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeJNN(TInstruccionDisassembler disInstruccion){
+    printf("JNN ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeLDL(TInstruccionDisassembler disInstruccion){
+    printf("LDL ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeLDH(TInstruccionDisassembler disInstruccion){
+    printf("LDH ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeRND(TInstruccionDisassembler disInstruccion){
+    printf("RND ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeNOT(TInstruccionDisassembler disInstruccion){
+    printf("NOT ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeSTOP(TInstruccionDisassembler disInstruccion){
+    printf("STOP ");
+    printf("\n");
+}
+
+
+

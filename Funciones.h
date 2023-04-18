@@ -1,4 +1,4 @@
 
-void leePrimerByte(char instruccion,char *operando1,char *operando2,char *operancion);
+void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operancion);
 //void sumaIP(int *ip,char operando1,char operando2);
 //char* intToHex(int n);
