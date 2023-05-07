@@ -181,3 +181,46 @@
 //
 //    }
 //}
+
+
+
+
+
+//setMem por bytes de tipo memoria
+
+
+//            if(o.segmentoReg == 0x00){ //segmento de 4 bytes
+                mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento] = (char)((num >> 24) & 0xFF);
+                mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 1] = (char)((num >> 16) & 0xFF);
+                mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 2] = (char)((num >> 8) & 0xFF);
+                mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 3] = (char)(num & 0xFF);
+//            }else{
+//                if(o.segmentoReg == 0x02){ //segmento 2 bytes
+//                    mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento] = (char) (num >> 8) & 0xFF;
+//                    mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 1] = (char) num & 0xFF;
+//
+//                }else //segmento de 1 byte
+//                    mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento] = (char) num;
+//            }
+//            break;
+
+//getMEM por bytes de tipo memoria
+
+
+//        if(o.segmentoReg == 0x02){ //segmento 2 bytes
+//                //      "|=" me haces re mal abuela
+//            num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento] << 8;
+//            num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 1];
+//        }else{
+//            if(o.segmentoReg == 0x00){ //segmento de 4 bytes
+
+                num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento] << 24;
+                num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 1] << 16;
+                num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 2] << 8;
+                num |= mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento + 3];
+
+//            }else //segmento de 1 byte
+//                num = mv->memoria[mv->TDD[1] + mv->registros[o.registro] + o.desplazamiento];
+//        }
+
+
