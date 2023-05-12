@@ -18,13 +18,13 @@
 
 1681504127 c:\users\facundo\dropbox\maquinavirtual\maquinavirtual2\operaciones.h
 
-1681771333 source:c:\users\facundo\dropbox\maquinavirtual2\funciones.c
+1683823819 source:c:\users\facundo\dropbox\maquinavirtual2\funciones.c
 	<stdio.h>
 	<stdlib.h>
 	"Funciones.h"
 	<string.h>
 
-1683406363 source:c:\users\facundo\dropbox\maquinavirtual2\main.c
+1683913833 source:c:\users\facundo\dropbox\maquinavirtual2\main.c
 	<stdio.h>
 	<stdlib.h>
 	"Funciones.h"
@@ -33,9 +33,9 @@
 
 1681770488 c:\users\facundo\dropbox\maquinavirtual2\funciones.h
 
-1683406363 c:\users\facundo\dropbox\maquinavirtual2\operaciones.h
+1683561303 c:\users\facundo\dropbox\maquinavirtual2\operaciones.h
 
-1683408202 source:c:\users\facundo\dropbox\maquinavirtual2\operaciones.c
+1683913784 source:c:\users\facundo\dropbox\maquinavirtual2\operaciones.c
 	<stdlib.h>
 	<stdio.h>
 	<string.h>

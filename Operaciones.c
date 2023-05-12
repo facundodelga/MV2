@@ -53,7 +53,6 @@ int getMem(TMV *mv,TOperando o){
     if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][1]){
 
         if(o.segmentoReg == 0x00){ //segmento de 4 bytes
-
                 num |= mv->memoria[mv->registros[o.registro] + o.desplazamiento] << 24;
                 num |= (0x00FF0000 & (mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] << 16));
                 num |= (0x0000FF00 & (mv->memoria[mv->registros[o.registro] + o.desplazamiento + 2] << 8));
@@ -82,6 +81,7 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
 
         case 0x00: //tipo memoria
             aux = mv->memoria[++ip];  //leo en un auxiliar el byte que dice el registro en el que se va a almacenar
+            o[1].segmentoReg = (aux >> 6) & 0x03;
             aux = aux & 0x0F;
             o[0].registro = (int)aux;
             //printf("registro t mem op 1 %d\n",aux);
@@ -116,6 +116,7 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
 
         case 0x00: //tipo memoria
             aux = mv->memoria[++ip];  //leo en un auxiliar el byte que dice el registro en el que se va a almacenar
+            o[1].segmentoReg = (aux >> 6) & 0x03;
             aux = aux & 0x0F;
             o[1].registro = aux;
 
@@ -124,7 +125,6 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
             auxInt |= mv->memoria[++ip];
             o[1].desplazamiento = auxInt;
 
-            o[1].segmentoReg = 0;
             break;
 
         case 0x01: //tipo inmediato
@@ -151,8 +151,6 @@ void setOp(TMV *mv,TOperando o,int num){
 
             if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][1]){
 
-//            printf("set desplazamiento %d\n",o.desplazamiento);
-//            printf("set puntero registro %d\n",mv->registros[o.registro]);
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
@@ -329,6 +327,45 @@ void writeSys(TMV *mv,TSistema aux){
     }
 }
 
+void readString(TMV *mv,TSistema aux){
+    char *st;
+    if(aux.tamanio > 0){
+        st = (char *)malloc(aux.tamanio * sizeof(char));
+    }else if(aux.tamanio == -1){
+        st = (char *)malloc(16384 * sizeof(char));
+    }
+    scanf(" %s",st);
+    int i = 0;
+    while(i < strlen(st)){
+        mv->memoria[mv->registros[13] + i] = st[i];
+        i++;
+    }
+
+}
+
+void writeString(TMV *mv,TSistema aux){
+
+    char *st;
+    int cantCaracteres = 0;
+
+    while(mv->memoria[mv->registros[13] + cantCaracteres] != '\0'){
+        cantCaracteres++;
+    }
+
+    if(cantCaracteres > 0){
+        st = (char * ) malloc(cantCaracteres * (sizeof(char)));
+
+        for(int i = 0;i <= cantCaracteres;i++){
+            strcat(*st,mv->memoria[mv->registros[13] + i]);
+        }
+
+        printf("%s\n",*st);
+    }
+}
+
+void breakPoint(TMV *mv,TSistema aux){
+}
+
 void sumaIP(int *ip,char operando1,char operando2){
     int op1,op2;
     if(operando1 == 0x0){
@@ -461,19 +498,32 @@ void XOR(TMV *mv, TOperando *op){
     sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void SYS(TMV *mv, TOperando *op){
-    t_funcionSys vecLlamadas[3];
+    t_funcionSys vecLlamadas[0xF1];
     vecLlamadas[1] = readSys;
     vecLlamadas[2] = writeSys;
+    vecLlamadas[3] = readString;
+    vecLlamadas[4] = writeString;
+    vecLlamadas[0xF] = breakPoint;
     TSistema aux;
-//    printf("sys registro %02X\n",mv->registros[13]);
-    aux.posicion = mv->registros[13];
-    aux.cantidad = mv->registros[12] & 0x000000FF;
-    aux.tamanio = (mv->registros[12] >> 8) & 0x000000FF;
-    aux.formato = mv->registros[10] & 0x000000FF;
-    vecLlamadas[getOp(mv,op[0])](mv,aux);
+    int llamada = getOp(mv,op[0]);
+    if(llamada == 1 || llamada == 2){
+    //    printf("sys registro %02X\n",mv->registros[13]);
+        aux.posicion = mv->registros[13];
+        aux.cantidad = mv->registros[12] & 0x000000FF;
+        aux.tamanio = (mv->registros[12] >> 8) & 0x000000FF;
+        aux.formato = mv->registros[10] & 0x000000FF;
+    }else if(llamada == 3 || llamada == 4){
+        aux.posicion = mv->registros[13];
+        aux.tamanio = mv->registros[12] & 0x0000FFFF;
+    }else if(llamada == 7){
+
+        system("cls");
+    }else if(llamada == 0xF){
+
+    }
+    vecLlamadas[llamada](mv,aux);
 
     sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
-
 }
 void JMP(TMV *mv, TOperando *op){
     int aux;
