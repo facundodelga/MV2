@@ -4,6 +4,9 @@ typedef struct {
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
     char imagenArchivo[15];
+    unsigned short int TDD[8][2];
+    char memoria[16384];
+    char imagenArchivo[15];
 }TMV;
 
 typedef struct{
@@ -20,6 +23,9 @@ typedef struct {
     char formato;
 }TSistema;
 
+//Funcion que ejecuta el ciclo del procesador
+void ejecutaCicloProcesador(TMV *mv,char version);
+
 int getOp(TMV *,TOperando );
 void setOp(TMV *,TOperando ,int );
 int getReg(TMV *,TOperando );
@@ -28,13 +34,16 @@ void recuperaOperandos(TMV *,TOperando *,int ); //mv, vector de operandos, ip
 void sumaIP(int *ip,char operando1,char operando2);
 void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion);
 
-//definicion protos funcion para el sistema
+//definicion protos funcion para llamada al Sistema (funciones del SYS)
 
 void readSys(TMV *mv,TSistema aux);
 void writeSys(TMV *mv,TSistema aux);
-void readString(TMV *mv,TSistema aux);
-void writeString(TMV *mv,TSistema aux);
-void breakPoint(TMV *mv,TSistema aux);
+void readStringSys(TMV *mv,TSistema aux);
+void writeStringSys(TMV *mv,TSistema aux);
+void breakPointSys(TMV *mv,TSistema aux);
+
+//Funciones del breakpoint
+void creaArchivoDeImagen(TMV mv);
 
 //definicion de tipo funcion para los vectores de funciones
 typedef void (*TOperaciones)(TMV *,TOperando *);
@@ -117,6 +126,8 @@ void imprimePOP(TInstruccionDisassembler disInstruccion);
 void imprimeCALL(TInstruccionDisassembler disInstruccion);
 void imprimeRET(TInstruccionDisassembler disInstruccion);
 void imprimeSTOP(TInstruccionDisassembler disInstruccion);
+void imprimeRET(TInstruccionDisassembler disInstruccion);
+
 
 void obtieneTAG(char reg,char segmento,char nombre[]);
 void imprimeOperando(TOperando op);

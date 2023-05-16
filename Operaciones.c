@@ -248,8 +248,8 @@ void setOp(TMV *mv,TOperando o,int num){
 
             if(o.segmentoReg == 0x03){ //segmento X 2 ultimos bytes
 
-                mv->registros[(int)o.registro] &= 0xFFFF0000; //limpia los 2 últimos bytes del registro
-                mv->registros[(int)o.registro] |= (num & 0x0000FFFF); //asigna los 2 últimos bytes del entero al registro
+                mv->registros[(int)o.registro] &= 0xFFFF0000; //limpia los 2 Ãºltimos bytes del registro
+                mv->registros[(int)o.registro] |= (num & 0x0000FFFF); //asigna los 2 Ãºltimos bytes del entero al registro
 
             } else if(o.segmentoReg == 0x02){ // segmento H 3er byte
 
@@ -258,8 +258,8 @@ void setOp(TMV *mv,TOperando o,int num){
 
             } else if(o.segmentoReg == 0x01){ //segmento L 4to byte
 
-                mv->registros[(int)o.registro] &= 0xFFFFFF00; //limpia el último byte del registro
-                mv->registros[(int)o.registro] |= (num & 0x000000FF); //asigna el último byte del entero al registro
+                mv->registros[(int)o.registro] &= 0xFFFFFF00; //limpia el Ãºltimo byte del registro
+                mv->registros[(int)o.registro] |= (num & 0x000000FF); //asigna el Ãºltimo byte del entero al registro
 
             } else if(o.segmentoReg == 0x00) {
 

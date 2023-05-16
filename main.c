@@ -32,6 +32,15 @@ int main(int argc,char *argv[]){
                 while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
                     ejecutaCicloProcesador(&mv,version);
                 break;
+            switch (version){
+            case 1:
+                while(mv.registros[5] < mv.TDD[1][0])
+                    ejecutaCicloProcesador(&mv,version);
+                break;
+            case 2:
+                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
+                    ejecutaCicloProcesador(&mv,version);
+                break;
             }
         //disassembler
         //if(argc >= 3){
@@ -54,7 +63,7 @@ unsigned short int acomodaTamanio(unsigned short int tamanio){
 }
 
 void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
-    unsigned short int tamanio = 0,tamanioAnt = 0;
+    unsigned short int tamanio = 0,tamanioAnt = 0,i;
     char *header = (char * )malloc(6 * sizeof(char));
     FILE *archBinario;
     int cuentaSegmentos = 0;
@@ -65,15 +74,22 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
     archBinario=fopen("sample (4).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
-
         if(strcmp(header,"VMX23") == 0){
             fread(version,sizeof(char),1,archBinario);
 
-            fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaño del codigo y asigno al CS
+            fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaï¿½o del codigo y asigno al CS
 
             tamanio = acomodaTamanio(tamanio);
             printf("MAQUINA VIRTUAL GRUPO G [ %s %02X %04X ]\n",header,*version,tamanio);
             printf("\n");
+            //Carga el header y el nombre del archivo .vmi;
+            for(i=0;i<5;i++){
+                mv->header[i]=header[i];
+            }
+            mv->header[6]=(char)tamanio>>8;
+            mv->header[7]=(char)tamanio;
+            strcpy(mv->imagenArchivo,*args[1]);
+            //
             mv->TDD[0][0] = 0x0000;
             mv->TDD[0][1] = tamanio;
 
@@ -87,7 +103,7 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
             if(*version == 2){
                 int tamanioAnt = tamanio;
 
-                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaño del KS
+                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaï¿½o del KS
 
                 tamanio = acomodaTamanio(tamanio);
 
@@ -101,7 +117,7 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
                     mv->registros[2] = -1;
                 }
 
-                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaño DS
+                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaï¿½o DS
 
                 tamanio = acomodaTamanio(tamanio);
 
@@ -115,7 +131,7 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
                     mv->registros[1] = -1;
                 }
 
-                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaño ES
+                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaï¿½o ES
 
                 tamanio = acomodaTamanio(tamanio);
 
@@ -129,7 +145,7 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
                     mv->registros[3] = -1;
                 }
 
-                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaño SS
+                fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamaï¿½o SS
 
                 tamanio = acomodaTamanio(tamanio);
 
