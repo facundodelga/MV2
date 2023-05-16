@@ -1,7 +1,9 @@
 typedef struct {
+    char header[8];
     char memoria[16384];
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
+    char imagenArchivo[15];
 }TMV;
 
 typedef struct{
@@ -24,11 +26,15 @@ int getReg(TMV *,TOperando );
 int getMem(TMV *,TOperando );
 void recuperaOperandos(TMV *,TOperando *,int ); //mv, vector de operandos, ip
 void sumaIP(int *ip,char operando1,char operando2);
+void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion);
 
 //definicion protos funcion para el sistema
 
 void readSys(TMV *mv,TSistema aux);
 void writeSys(TMV *mv,TSistema aux);
+void readString(TMV *mv,TSistema aux);
+void writeString(TMV *mv,TSistema aux);
+void breakPoint(TMV *mv,TSistema aux);
 
 //definicion de tipo funcion para los vectores de funciones
 typedef void (*TOperaciones)(TMV *,TOperando *);
@@ -60,7 +66,11 @@ void LDL(TMV *mv, TOperando *op);
 void LDH(TMV *mv, TOperando *op);
 void RND(TMV *mv, TOperando *op);
 void NOT(TMV *mv, TOperando *op);
+void PUSH(TMV *mv, TOperando *op);
+void POP(TMV *mv, TOperando *op);
+void CALL(TMV *mv, TOperando *op);
 void STOP(TMV *mv, TOperando *op);
+void RET(TMV *mv, TOperando *op);
 void setCC(TMV *mv,int numero);
 
 
@@ -102,6 +112,10 @@ void imprimeLDL(TInstruccionDisassembler disInstruccion);
 void imprimeLDH(TInstruccionDisassembler disInstruccion);
 void imprimeRND(TInstruccionDisassembler disInstruccion);
 void imprimeNOT(TInstruccionDisassembler disInstruccion);
+void imprimePUSH(TInstruccionDisassembler disInstruccion);
+void imprimePOP(TInstruccionDisassembler disInstruccion);
+void imprimeCALL(TInstruccionDisassembler disInstruccion);
+void imprimeRET(TInstruccionDisassembler disInstruccion);
 void imprimeSTOP(TInstruccionDisassembler disInstruccion);
 
 void obtieneTAG(char reg,char segmento,char nombre[]);

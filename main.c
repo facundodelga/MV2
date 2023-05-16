@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "Funciones.h"
 #include "Operaciones.h"
 #include <string.h>
 
@@ -19,66 +18,29 @@ void dissasembler(TMV *, int );
 
 int main(int argc,char *argv[]){
     char version;
-    unsigned int operacion;
-    TOperando operandos[2];
     int numInstrucciones;
     TMV mv;
 
-    TOperaciones vecFunciones[242];
-
     //if(argc > 1){
-
             cargaMV(&mv,argv,&numInstrucciones,&version);
-
-            cargaVectorDeFunciones(vecFunciones);
-
-            if(version == 1){
-                while(mv.registros[5] < mv.TDD[1][0]){ // IP menor al DS
-
-                    leePrimerByte(mv.memoria[mv.registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-
-                    recuperaOperandos(&mv,operandos,mv.registros[5]);
-
-                    if((operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0))
-                        vecFunciones[operacion](&mv, operandos);
-                    else{
-                        printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
-                        mv.registros[5] = mv.TDD[1][0];
-                    }
-                }
-
-            }else if(version == 2){
-                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones){ // IP menor al KS
-
-                    leePrimerByte(mv.memoria[mv.registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-
-                    recuperaOperandos(&mv,operandos,mv.registros[5]);
-
-                    if((operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3F) || (operacion >= 0xF0 && operacion < 0xF2))
-                        vecFunciones[operacion](&mv, operandos);
-                    else{
-                        printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
-                        mv.registros[5] = mv.TDD[2][0];
-                    }
-                }
+            switch (version){
+            case 1:
+                while(mv.registros[5] < mv.TDD[0][1])
+                    ejecutaCicloProcesador(&mv,version);
+                break;
+            case 2:
+                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
+                    ejecutaCicloProcesador(&mv,version);
+                break;
             }
-
-
         //disassembler
-        //int flagDisassembler = 1;
-//                if(argc >= 3){
-
+        //if(argc >= 3){
             //if(strcmp(argv[2],"-d") == 0){
-
                 printf("\n");
                 dissasembler(&mv,numInstrucciones);
-
             //}
-
-//        }
-
+        //}
         printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
-
     return 0;
 }
 
@@ -100,7 +62,7 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
     int todoOK = 1;
 
     //archBinario=fopen(archivo,"rb");
-    archBinario=fopen("sample (2).vmx","rb");
+    archBinario=fopen("sample (4).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
 

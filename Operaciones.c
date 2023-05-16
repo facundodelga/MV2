@@ -2,7 +2,78 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include "Funciones.h"
 #include "Operaciones.h"
+
+void ejecutaCicloProcesador(TMV *mv,char version){
+    unsigned int condicion,operacion;
+    TOperando operandos[2];
+    TOperaciones vecFunciones[256];
+
+    cargaVectorDeFunciones(vecFunciones);
+    leePrimerByte(mv->memoria[mv->registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
+    recuperaOperandos(mv,operandos,mv->registros[5]);
+    switch (version){
+    case 1: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0);
+        break;
+    case 2: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3F) || (operacion >= 0xF0 && operacion < 0xF2);
+        break;
+    }
+    if(condicion)
+         vecFunciones[operacion](mv, operandos);
+    else{
+        printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
+        mv->registros[5] = mv->TDD[2][0];
+    }
+}
+
+void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion){
+
+    if((instruccion & 0xF0) == 0xF0)
+        *operacion = 0xF0;
+    else{
+        *operando1 = (instruccion >> 6) & 0x03;
+        *operando2 = instruccion & 0x30;
+
+        if(*operando2 == 0x30){
+            *operacion = instruccion & 0x3F; //aislo codigo de operacion
+            *operando2 = 0x3;
+        }else{
+            *operacion = instruccion & 0x0F;
+            *operando2 = *operando2 >> 4;
+            *operando2 &= 0x03;// 0000 0011
+        }
+    }
+
+//    printf("%d\n",*operando1);
+//    printf("%d\n",*operando2);
+}
+
+void creaArchivoDeImagen(TMV mv){
+    FILE *archImagen;
+    unsigned short int i,tamanio=mv.header[6]<<8|mv.header[7];
+    char DD; //DD=descriptor de segmento
+
+    archImagen=fopen(mv.imagenArchivo,"wb");
+    if(archImagen!=NULL){
+    for(i=0;i<8;i++)
+        fprintf(archImagen,"%c",mv.header[i]);
+    for(i=0;i<15;i++){
+        fprintf(archImagen,"%c",(mv.registros[i]&0xFF000000)>>24);
+        fprintf(archImagen,"%c",(mv.registros[i]&0x00FF0000)>>16);
+        fprintf(archImagen,"%c",(mv.registros[i]&0x0000FF00)>>8);
+        fprintf(archImagen,"%c",mv.registros[i]&0x000000FF);
+    }
+    for(i=0;i<8;i++){
+        DD=mv.TDD[i][0]<<4 | mv.TDD[i][1];
+        fprintf(archImagen,"%c",DD);
+    }
+    for(i=0;i<tamanio;i++){
+        fprintf(archImagen,"%c",mv.memoria[i]);
+    }
+}
+    close(archImagen);
+}
 
 int getOp(TMV *mv,TOperando o){
     char t_reg = 0x02, t_mem = 0x00, t_inm = 0x01;
@@ -19,7 +90,6 @@ int getOp(TMV *mv,TOperando o){
     }
 
 }
-
 int getReg(TMV *mv,TOperando o){
     int num;
     if(o.segmentoReg == 0x03){ //segmento X
@@ -44,8 +114,6 @@ int getReg(TMV *mv,TOperando o){
 
     return num;
 }
-
-
 int getMem(TMV *mv,TOperando o){
     unsigned int num = 0;
 
@@ -73,7 +141,6 @@ int getMem(TMV *mv,TOperando o){
     }
     return num;
 }
-
 void recuperaOperandos(TMV *mv,TOperando *o,int ip){
     char aux;
     int auxInt = 0;
@@ -128,8 +195,8 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
             break;
 
         case 0x01: //tipo inmediato
-            auxInt |= mv->memoria[++ip] << 8; //leo en un int auxiliar los 2 bytes que representan el numero inmediato
-            auxInt |= mv->memoria[++ip];
+            auxInt = (int) mv->memoria[++ip] << 8;
+            auxInt |= (mv->memoria[++ip] & 0x000000FF);
             o[1].desplazamiento = auxInt;
 
             break;
@@ -144,25 +211,31 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
             break;
     }
 }
-
 void setOp(TMV *mv,TOperando o,int num){
     switch(o.tipo){
         case 0x00: //tipo memoria
 
-            if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][1]){
+            if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][0] + mv->TDD[1][1]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 2] = (char)((num >> 8) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 3] = (char)(num & 0x000000FF);
+                    if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 3)
+                        mv->TDD[1][1] += o.desplazamiento + 4;
                 }else{
                     if(o.segmentoReg == 0x02){ //segmento 2 bytes
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) (num >> 8) & 0x000000FF;
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char) num & 0x000000FF;
+                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 1)
+                            mv->TDD[1][1] += o.desplazamiento + 2;
 
-                    }else //segmento de 1 byte
+                    }else{ //segmento de 1 byte
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) num >> 24;
+                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento)
+                            mv->TDD[1][1] += o.desplazamiento + 1;
+                    }
                 }
             }else{
                 printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
@@ -201,7 +274,6 @@ void setOp(TMV *mv,TOperando o,int num){
             break;
     }
 }
-
 void cargaVectorDeFunciones(TOperaciones *v){
     //operaciones de 2 op
     v[0x0] = MOV;
@@ -229,8 +301,12 @@ void cargaVectorDeFunciones(TOperaciones *v){
     v[0x39] = LDH;
     v[0x3A] = RND;
     v[0x3B] = NOT;
+    v[0x3C] = PUSH;
+    v[0x3D] = POP;
+    v[0x3E] = CALL;
     //operaciones sin op
     v[0xF0] = STOP;
+    v[0xF1] = RET;
 }
 
 
@@ -248,25 +324,22 @@ void readSys(TMV *mv,TSistema aux){
         auxOp.segmentoReg = aux.tamanio;
 
     while(i<aux.cantidad){
+         printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
         switch (aux.formato){
         case 1:
-            printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
-            scanf("%d",&dato);
+            scanf(" %d",&dato);
             setOp(mv,auxOp,dato);
             break;
         case 2:
-            printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
-            scanf("%c",&dato);
+            scanf(" %c",&dato);
             setOp(mv,auxOp,dato);
             break;
         case 4:
-            printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
-            scanf("%o",&dato);
+            scanf(" %o",&dato);
             setOp(mv,auxOp,dato);
             break;
         case 8:
-            printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
-            scanf("%X",&dato);
+            scanf(" %X",&dato);
             setOp(mv,auxOp,dato);
             break;
         }
@@ -274,7 +347,6 @@ void readSys(TMV *mv,TSistema aux){
         auxOp.desplazamiento = i * aux.tamanio;
     }
 }
-
 void writeSys(TMV *mv,TSistema aux){
     int i = 0;
     TOperando auxOp; //creo una variable auxiliar para pedir a memoria
@@ -286,36 +358,37 @@ void writeSys(TMV *mv,TSistema aux){
         auxOp.segmentoReg = 0; // si es 4 bytes asigno 0 por que asi va xd
     else
         auxOp.segmentoReg = aux.tamanio;
-//    printf("formato de print %d\n",aux.formato);
+  //printf("formato de print %d\n",aux.formato);
 
     while(i < aux.cantidad){
+        printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
         switch (aux.formato){
         case 1:
-            printf("[%04X] %d\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,getMem(mv,auxOp));
+            printf("%d\n",getMem(mv,auxOp));
             break;
         case 2:
             auxint = getMem(mv,auxOp);
             if(32 <= auxint && auxint < 127)
-                printf("[%04X] %c %d\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,getMem(mv,auxOp));
+                printf("%c %d\n",getMem(mv,auxOp));
             else
-                printf("[%04X] . %d\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,auxint);
+                printf(". %d\n",auxint);
             break;
         case 4:
-            printf("[%04X] %o\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,getMem(mv,auxOp));
+            printf("%o\n",getMem(mv,auxOp));
             break;
         case 8:
-            printf("[%04X] %08X\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,getMem(mv,auxOp));
+            printf("%08X\n",getMem(mv,auxOp));
             break;
         case 9:
             auxint = getMem(mv,auxOp);
-            printf("[%04X] # %d HEXA %08X\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,auxint,auxint);
+            printf(" # %d HEXA %08X\n",auxint,auxint);
             break;
         case 15:
             auxint = getMem(mv,auxOp);
             if(32 <= auxint && auxint < 127)
-                printf("[%04X] ' %c # %d @ %o  HEXA %08X\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,auxint,auxint,auxint,auxint);
+                printf("' %c # %d @ %o  HEXA %08X\n",auxint,auxint,auxint,auxint);
             else
-                printf("[%04X] ' . # %d @ %o  HEXA %08X\n",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento,auxint,auxint,auxint);
+                printf("' . # %d @ %o  HEXA %08X\n",auxint,auxint,auxint);
 
             break;
         default:
@@ -326,8 +399,7 @@ void writeSys(TMV *mv,TSistema aux){
         auxOp.desplazamiento = i * aux.tamanio;
     }
 }
-
-void readString(TMV *mv,TSistema aux){
+void readStringSys(TMV *mv,TSistema aux){
     char *st;
     if(aux.tamanio > 0){
         st = (char *)malloc(aux.tamanio * sizeof(char));
@@ -342,8 +414,7 @@ void readString(TMV *mv,TSistema aux){
     }
 
 }
-
-void writeString(TMV *mv,TSistema aux){
+void writeStringSys(TMV *mv,TSistema aux){
 
     char *st;
     int cantCaracteres = 0;
@@ -362,8 +433,16 @@ void writeString(TMV *mv,TSistema aux){
         printf("%s\n",*st);
     }
 }
-
-void breakPoint(TMV *mv,TSistema aux){
+void breakPointSys(TMV *mv,TSistema aux){
+    char quitOEnter;
+    if(mv->imagenArchivo!=NULL){
+        do{
+          creaArchivoDeImagen(*mv);
+          scanf(" %c\n",&quitOEnter);
+          if(quitOEnter==13) //si es igual a enter se ejecuta el ciclo del procesador con la siguiente instruccion
+            ejecutaCicloProcesador(mv,mv->header[5]);
+        }while(quitOEnter!=113); //si es igual a q se detiene el breakpoint
+    }
 }
 
 void sumaIP(int *ip,char operando1,char operando2){
@@ -501,9 +580,9 @@ void SYS(TMV *mv, TOperando *op){
     t_funcionSys vecLlamadas[0xF1];
     vecLlamadas[1] = readSys;
     vecLlamadas[2] = writeSys;
-    vecLlamadas[3] = readString;
-    vecLlamadas[4] = writeString;
-    vecLlamadas[0xF] = breakPoint;
+    vecLlamadas[3] = readStringSys;
+    vecLlamadas[4] = writeStringSys;
+    vecLlamadas[0xF] = breakPointSys;
     TSistema aux;
     int llamada = getOp(mv,op[0]);
     if(llamada == 1 || llamada == 2){
@@ -516,10 +595,7 @@ void SYS(TMV *mv, TOperando *op){
         aux.posicion = mv->registros[13];
         aux.tamanio = mv->registros[12] & 0x0000FFFF;
     }else if(llamada == 7){
-
         system("cls");
-    }else if(llamada == 0xF){
-
     }
     vecLlamadas[llamada](mv,aux);
 
@@ -605,9 +681,60 @@ void NOT(TMV *mv, TOperando *op){
     sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 
+void PUSH(TMV *mv,TOperando *op){
+    int aux;
+    mv->registros[6]-=4;
+    if(mv->registros[6]<mv->registros[4]){
+        printf("ERROR: STACK OVERFLOW");
+        STOP(mv,op);
+    }else{
+        aux=getOp(mv,op[0]);
+        mv->memoria[mv->registros[6]+3]=(aux & 0x000000FF);
+        mv->memoria[mv->registros[6]+2]=(aux & 0x0000FF00)>>8;
+        mv->memoria[mv->registros[6]+1]=(aux & 0x00FF0000)>>16;
+        mv->memoria[mv->registros[6]]=(aux & 0xFF000000)>>24;
+    }
+}
+void POP(TMV *mv,TOperando *op){
+    int aux,tamanio=0x00000000 | mv->header[6]<<8 | mv->header[7];
+    if(mv->registros[6]-4<tamanio){
+        printf("ERROR: STACK UNDERFLOW");
+        STOP(mv,op);
+    }else{
+        aux=(mv->memoria[mv->registros[6]]<<24) | (mv->memoria[mv->registros[6]+1]<<16) | (mv->memoria[mv->registros[6]+2]<<8) | mv->memoria[mv->registros[6]+3];
+        setOp(mv,op[0],aux);
+        mv->registros[6]+=4;
+    }
+}
+void CALL(TMV *mv,TOperando *op){
+    int aux;
+    mv->registros[6]-=4;
+    if(mv->registros[6]<mv->registros[4]){
+        printf("ERROR: STACK OVERFLOW");
+        STOP(mv,op);
+    }else{
+        aux=mv->registros[5];
+        mv->memoria[mv->registros[6]+3]=(aux & 0x000000FF);
+        mv->memoria[mv->registros[6]+2]=(aux & 0x0000FF00)>>8;
+        mv->memoria[mv->registros[6]+1]=(aux & 0x00FF0000)>>16;
+        mv->memoria[mv->registros[6]]=(aux & 0xFF000000)>>24;
+        JMP(mv,op);
+    }
+}
 void STOP(TMV *mv, TOperando *op){
      mv->registros[5] = mv->TDD[1][0];
 }
+void RET(TMV *mv,TOperando *op){
+    int aux,tamanio=0x00000000 | mv->header[6]<<8 | mv->header[7];
+    if(mv->registros[6]-4<tamanio){
+        printf("ERROR: STACK UNDERFLOW");
+        STOP(mv,op);
+    }else{
+        mv->registros[5]=(mv->memoria[mv->registros[6]]<<24) | (mv->memoria[mv->registros[6]+1]<<16) | (mv->memoria[mv->registros[6]+2]<<8) | mv->memoria[mv->registros[6]+3];
+        mv->registros[6]+=4;
+    }
+}
+
 
 void setCC(TMV *mv,int numero){
     if(numero==0)
@@ -650,10 +777,13 @@ void cargaVectorDisassembler(t_funcionDisassembler *v){
     v[0x39] = imprimeLDH;
     v[0x3A] = imprimeRND;
     v[0x3B] = imprimeNOT;
+    v[0x3C] = imprimePUSH;
+    v[0x3D] = imprimePOP;
+    v[0x3E] = imprimeCALL;
     //operaciones sin operandos
     v[0xF0] = imprimeSTOP;
+    v[0xF1] = imprimeRET;
 }
-
 
 void obtieneTAG(char reg,char segmento,char nombre[]){
     switch (reg){
@@ -661,17 +791,17 @@ void obtieneTAG(char reg,char segmento,char nombre[]){
         break;
     case 0x01:strcpy(nombre,"DS");
         break;
-    case 0x02:strcpy(nombre,".");
+    case 0x02:strcpy(nombre,"KS");
         break;
-    case 0x03:strcpy(nombre,".");
+    case 0x03:strcpy(nombre,"ES");
         break;
-    case 0x04:strcpy(nombre,".");
+    case 0x04:strcpy(nombre,"SS");
         break;
     case 0x05:strcpy(nombre,"IP");
         break;
-    case 0x06:strcpy(nombre,".");
+    case 0x06:strcpy(nombre,"SP");
         break;
-    case 0x07:strcpy(nombre,".");
+    case 0x07:strcpy(nombre,"BP");
         break;
     case 0x08:strcpy(nombre,"CC");
         break;
@@ -791,7 +921,6 @@ void imprimeSUB(TInstruccionDisassembler disInstruccion){
     imprimeOperando(disInstruccion.operandos[1]);
     printf("\n");
 }
-
 void imprimeSWAP(TInstruccionDisassembler disInstruccion){
     printf("SWAP ");
     imprimeOperando(disInstruccion.operandos[0]);
@@ -799,7 +928,6 @@ void imprimeSWAP(TInstruccionDisassembler disInstruccion){
     imprimeOperando(disInstruccion.operandos[1]);
     printf("\n");
 }
-
 void imprimeMUL(TInstruccionDisassembler disInstruccion){
     printf("MUL ");
     imprimeOperando(disInstruccion.operandos[0]);
@@ -807,7 +935,6 @@ void imprimeMUL(TInstruccionDisassembler disInstruccion){
     imprimeOperando(disInstruccion.operandos[1]);
     printf("\n");
 }
-
 void imprimeDIV(TInstruccionDisassembler disInstruccion){
     printf("DIV ");
     imprimeOperando(disInstruccion.operandos[0]);
@@ -815,7 +942,6 @@ void imprimeDIV(TInstruccionDisassembler disInstruccion){
     imprimeOperando(disInstruccion.operandos[1]);
     printf("\n");
 }
-
 void imprimeCMP(TInstruccionDisassembler disInstruccion){
     printf("CMP ");
     imprimeOperando(disInstruccion.operandos[0]);
@@ -918,10 +1044,26 @@ void imprimeNOT(TInstruccionDisassembler disInstruccion){
     imprimeOperando(disInstruccion.operandos[0]);
     printf("\n");
 }
+void imprimePUSH(TInstruccionDisassembler disInstruccion){
+    printf("PUSH ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimePOP(TInstruccionDisassembler disInstruccion){
+    printf("PULL ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
+void imprimeCALL(TInstruccionDisassembler disInstruccion){
+    printf("CALL ");
+    imprimeOperando(disInstruccion.operandos[0]);
+    printf("\n");
+}
 void imprimeSTOP(TInstruccionDisassembler disInstruccion){
     printf("STOP ");
     printf("\n");
 }
-
-
-
+void imprimeRET(TInstruccionDisassembler disInstruccion){
+    printf("RET ");
+    printf("\n");
+}
