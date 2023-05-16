@@ -19,66 +19,29 @@ void dissasembler(TMV *, int );
 
 int main(int argc,char *argv[]){
     char version;
-    unsigned int operacion;
-    TOperando operandos[2];
     int numInstrucciones;
     TMV mv;
 
-    TOperaciones vecFunciones[242];
-
     //if(argc > 1){
-
             cargaMV(&mv,argv,&numInstrucciones,&version);
-
-            cargaVectorDeFunciones(vecFunciones);
-
-            if(version == 1){
-                while(mv.registros[5] < mv.TDD[1][0]){ // IP menor al DS
-
-                    leePrimerByte(mv.memoria[mv.registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-
-                    recuperaOperandos(&mv,operandos,mv.registros[5]);
-
-                    if((operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0))
-                        vecFunciones[operacion](&mv, operandos);
-                    else{
-                        printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
-                        mv.registros[5] = mv.TDD[1][0];
-                    }
-                }
-
-            }else if(version == 2){
-                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones){ // IP menor al KS
-
-                    leePrimerByte(mv.memoria[mv.registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-
-                    recuperaOperandos(&mv,operandos,mv.registros[5]);
-
-                    if((operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3F) || (operacion >= 0xF0 && operacion < 0xF2))
-                        vecFunciones[operacion](&mv, operandos);
-                    else{
-                        printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
-                        mv.registros[5] = mv.TDD[2][0];
-                    }
-                }
+            switch (version){
+            case 1:
+                while(mv.registros[5] < mv.TDD[1][0])
+                    ejecutaCicloProcesador(&mv,version);
+                break;
+            case 2:
+                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
+                    ejecutaCicloProcesador(&mv,version);
+                break;
             }
-
-
         //disassembler
-        //int flagDisassembler = 1;
-//                if(argc >= 3){
-
+        //if(argc >= 3){
             //if(strcmp(argv[2],"-d") == 0){
-
                 printf("\n");
                 dissasembler(&mv,numInstrucciones);
-
             //}
-
-//        }
-
+        //}
         printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
-
     return 0;
 }
 
@@ -92,7 +55,7 @@ unsigned short int acomodaTamanio(unsigned short int tamanio){
 }
 
 void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
-    unsigned short int tamanio = 0,tamanioAnt = 0;
+    unsigned short int tamanio = 0,tamanioAnt = 0,i;
     char *header = (char * )malloc(6 * sizeof(char));
     FILE *archBinario;
     int cuentaSegmentos = 0;
@@ -103,7 +66,6 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
     archBinario=fopen("sample (2).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
-
         if(strcmp(header,"VMX23") == 0){
             fread(version,sizeof(char),1,archBinario);
 
@@ -112,6 +74,14 @@ void cargaMV(TMV *mv, char *args[],int *numInstrucciones,char *version){
             tamanio = acomodaTamanio(tamanio);
             printf("MAQUINA VIRTUAL GRUPO G [ %s %02X %04X ]\n",header,*version,tamanio);
             printf("\n");
+            //Carga el header y el nombre del archivo .vmi;
+            for(i=0;i<5;i++){
+                mv->header[i]=header[i];
+            }
+            mv->header[6]=(char)tamanio>>8;
+            mv->header[7]=(char)tamanio;
+            strcpy(mv->imagenArchivo,*args[1]);
+            //
             mv->TDD[0][0] = 0x0000;
             mv->TDD[0][1] = tamanio;
 
