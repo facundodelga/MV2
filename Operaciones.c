@@ -27,6 +27,27 @@ void ejecutaCicloProcesador(TMV *mv,char version){
     }
 }
 
+void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion){
+
+    if((instruccion & 0xF0) == 0xF0)
+        *operacion = 0xF0;
+    else{
+        *operando1 = (instruccion >> 6) & 0x03;
+        *operando2 = instruccion & 0x30;
+
+        if(*operando2 == 0x30){
+            *operacion = instruccion & 0x3F; //aislo codigo de operacion
+            *operando2 = 0x3;
+        }else{
+            *operacion = instruccion & 0x0F;
+            *operando2 = *operando2 >> 4;
+            *operando2 &= 0x03;// 0000 0011
+        }
+    }
+
+//    printf("%d\n",*operando1);
+//    printf("%d\n",*operando2);
+}
 
 void creaArchivoDeImagen(TMV mv){
     FILE *archImagen;
@@ -174,8 +195,8 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
             break;
 
         case 0x01: //tipo inmediato
-            auxInt |= mv->memoria[++ip] << 8; //leo en un int auxiliar los 2 bytes que representan el numero inmediato
-            auxInt |= mv->memoria[++ip];
+            auxInt = (int) mv->memoria[++ip] << 8;
+            auxInt |= (mv->memoria[++ip] & 0x000000FF);
             o[1].desplazamiento = auxInt;
 
             break;
@@ -194,20 +215,27 @@ void setOp(TMV *mv,TOperando o,int num){
     switch(o.tipo){
         case 0x00: //tipo memoria
 
-            if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][1]){
+            if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][0] + mv->TDD[1][1]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 2] = (char)((num >> 8) & 0x000000FF);
                     mv->memoria[mv->registros[o.registro] + o.desplazamiento + 3] = (char)(num & 0x000000FF);
+                    if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 3)
+                        mv->TDD[1][1] += o.desplazamiento + 4;
                 }else{
                     if(o.segmentoReg == 0x02){ //segmento 2 bytes
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) (num >> 8) & 0x000000FF;
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char) num & 0x000000FF;
+                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 1)
+                            mv->TDD[1][1] += o.desplazamiento + 2;
 
-                    }else //segmento de 1 byte
+                    }else{ //segmento de 1 byte
                         mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) num >> 24;
+                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento)
+                            mv->TDD[1][1] += o.desplazamiento + 1;
+                    }
                 }
             }else{
                 printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
@@ -220,8 +248,8 @@ void setOp(TMV *mv,TOperando o,int num){
 
             if(o.segmentoReg == 0x03){ //segmento X 2 ultimos bytes
 
-                mv->registros[(int)o.registro] &= 0xFFFF0000; //limpia los 2 últimos bytes del registro
-                mv->registros[(int)o.registro] |= (num & 0x0000FFFF); //asigna los 2 últimos bytes del entero al registro
+                mv->registros[(int)o.registro] &= 0xFFFF0000; //limpia los 2 Ãºltimos bytes del registro
+                mv->registros[(int)o.registro] |= (num & 0x0000FFFF); //asigna los 2 Ãºltimos bytes del entero al registro
 
             } else if(o.segmentoReg == 0x02){ // segmento H 3er byte
 
@@ -230,8 +258,8 @@ void setOp(TMV *mv,TOperando o,int num){
 
             } else if(o.segmentoReg == 0x01){ //segmento L 4to byte
 
-                mv->registros[(int)o.registro] &= 0xFFFFFF00; //limpia el último byte del registro
-                mv->registros[(int)o.registro] |= (num & 0x000000FF); //asigna el último byte del entero al registro
+                mv->registros[(int)o.registro] &= 0xFFFFFF00; //limpia el Ãºltimo byte del registro
+                mv->registros[(int)o.registro] |= (num & 0x000000FF); //asigna el Ãºltimo byte del entero al registro
 
             } else if(o.segmentoReg == 0x00) {
 
