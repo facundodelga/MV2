@@ -32,15 +32,6 @@ int main(int argc,char *argv[]){
                 while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
                     ejecutaCicloProcesador(&mv,version);
                 break;
-            switch (version){
-            case 1:
-                while(mv.registros[5] < mv.TDD[1][0])
-                    ejecutaCicloProcesador(&mv,version);
-                break;
-            case 2:
-                while(mv.registros[5] < mv.TDD[2][0] || mv.registros[5] < numInstrucciones)
-                    ejecutaCicloProcesador(&mv,version);
-                break;
             }
         //disassembler
         //if(argc >= 3){
