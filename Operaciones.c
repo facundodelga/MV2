@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include "Funciones.h"
 #include "Operaciones.h"
 
 void ejecutaCicloProcesador(TMV *mv,char version){
@@ -23,15 +22,25 @@ void ejecutaCicloProcesador(TMV *mv,char version){
          vecFunciones[operacion](mv, operandos);
     else{
         printf("ERROR! LA FUNCION %02X NO EXISTE!... BYE BYE\n",operacion);
-        mv->registros[5] = mv->TDD[2][0];
+        mv->registros[5] = mv->TDD[0][1];
     }
 }
 
 void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion){
 
-    if((instruccion & 0xF0) == 0xF0)
-        *operacion = 0xF0;
-    else{
+    if((instruccion & 0xF0) == 0xF0){
+        if((instruccion & 0x03) == 0x00)
+            *operacion = 0xF0;
+        else{
+            if((instruccion & 0x03) == 0x01)
+                *operacion = 0xF1;
+            else
+                *operacion = 0xF3;
+        }
+        *operando2 = 0x3;
+        *operando1 = 0x3;
+    }else{
+
         *operando1 = (instruccion >> 6) & 0x03;
         *operando2 = instruccion & 0x30;
 
@@ -72,7 +81,7 @@ void creaArchivoDeImagen(TMV mv){
         fprintf(archImagen,"%c",mv.memoria[i]);
     }
 }
-    close(archImagen);
+    fclose(archImagen);
 }
 
 int getOp(TMV *mv,TOperando o){
@@ -116,24 +125,24 @@ int getReg(TMV *mv,TOperando o){
 }
 int getMem(TMV *mv,TOperando o){
     unsigned int num = 0;
-
-    //printf("get puntero %02X\n",mv->registros[o.registro]);
-    if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][1]){
+    int posSeg = (mv->registros[o.registro] >> 16) & 0x0000000F;
+    int puntero = (mv->registros[o.registro]) & 0x0000FFFF;
+    printf("\nKS: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
+    if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0] && o.desplazamiento + puntero < mv->TDD[posSeg][1]){
 
         if(o.segmentoReg == 0x00){ //segmento de 4 bytes
-                num |= mv->memoria[mv->registros[o.registro] + o.desplazamiento] << 24;
-                num |= (0x00FF0000 & (mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] << 16));
-                num |= (0x0000FF00 & (mv->memoria[mv->registros[o.registro] + o.desplazamiento + 2] << 8));
-                num |= (0x000000FF & (mv->memoria[mv->registros[o.registro] + o.desplazamiento + 3]));
-
+                num |= mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] << 24;
+                num |= (0x00FF0000 & (mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1] << 16));
+                num |= (0x0000FF00 & (mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 2] << 8));
+                num |= (0x000000FF & (mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 3]));
         }else{
             if(o.segmentoReg == 0x02){ //segmento 2 bytes
                     //      "|=" me haces re mal abuela
-                num |= mv->memoria[mv->registros[o.registro] + o.desplazamiento] << 8;
-                num |= mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1];
+                num |= mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] << 8;
+                num |= mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1];
 
             }else //segmento de 1 byte
-                num = mv->memoria[mv->registros[o.registro] + o.desplazamiento];
+                num = mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento];
         }
     }else{
         printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
@@ -148,14 +157,15 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
 
         case 0x00: //tipo memoria
             aux = mv->memoria[++ip];  //leo en un auxiliar el byte que dice el registro en el que se va a almacenar
-            o[1].segmentoReg = (aux >> 6) & 0x03;
+            o[0].segmentoReg = (aux >> 6) & 0x03;
             aux = aux & 0x0F;
             o[0].registro = (int)aux;
             //printf("registro t mem op 1 %d\n",aux);
+
             auxInt |= mv->memoria[++ip] << 8; //leo en un int auxiliar los 2 bytes que representan el desplazamiento de bytes
-            auxInt |= mv->memoria[++ip];
+            auxInt |= (mv->memoria[++ip] & 0x000000FF);
+
             o[0].desplazamiento = auxInt;
-            o[0].segmentoReg = 0;
             //printf("desplazamiento t mem op 1 %d\n",aux);
             break;
 
@@ -189,9 +199,9 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
 
             //printf("segmento op 2 %d\n",o[0].segmentoReg);
             auxInt |= mv->memoria[++ip] << 8; //leo en un int auxiliar los 2 bytes que representan el desplazamiento de bytes
-            auxInt |= mv->memoria[++ip];
-            o[1].desplazamiento = auxInt;
+            auxInt |= (mv->memoria[++ip] & 0x000000FF);
 
+            o[1].desplazamiento = auxInt;
             break;
 
         case 0x01: //tipo inmediato
@@ -212,34 +222,37 @@ void recuperaOperandos(TMV *mv,TOperando *o,int ip){
     }
 }
 void setOp(TMV *mv,TOperando o,int num){
+    int posSeg = (mv->registros[o.registro] >> 16) & 0x0000000F;
+    int puntero = (mv->registros[o.registro]) & 0x0000FFFF;
+
     switch(o.tipo){
         case 0x00: //tipo memoria
-
-            if(mv->registros[o.registro] >= mv->TDD[1][0] && mv->registros[o.registro] < mv->TDD[1][0] + mv->TDD[1][1]){
+        printf("DS: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
+        if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
-                    mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
-                    mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
-                    mv->memoria[mv->registros[o.registro] + o.desplazamiento + 2] = (char)((num >> 8) & 0x000000FF);
-                    mv->memoria[mv->registros[o.registro] + o.desplazamiento + 3] = (char)(num & 0x000000FF);
-                    if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 3)
-                        mv->TDD[1][1] += o.desplazamiento + 4;
+                    mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
+                    mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
+                    mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 2] = (char)((num >> 8) & 0x000000FF);
+                    mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 3] = (char)(num & 0x000000FF);
+                    if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 3)
+                        mv->TDD[posSeg][1] += puntero + o.desplazamiento + 4;
                 }else{
                     if(o.segmentoReg == 0x02){ //segmento 2 bytes
-                        mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) (num >> 8) & 0x000000FF;
-                        mv->memoria[mv->registros[o.registro] + o.desplazamiento + 1] = (char) num & 0x000000FF;
-                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento + 1)
-                            mv->TDD[1][1] += o.desplazamiento + 2;
+                        mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) (num >> 8) & 0x000000FF;
+                        mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1] = (char) num & 0x000000FF;
+                        if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 1)
+                            mv->TDD[posSeg][1] += puntero + o.desplazamiento + 2;
 
                     }else{ //segmento de 1 byte
-                        mv->memoria[mv->registros[o.registro] + o.desplazamiento] = (char) num >> 24;
-                        if(mv->TDD[1][0] + mv->TDD[1][1] < mv->registros[o.registro] + o.desplazamiento)
-                            mv->TDD[1][1] += o.desplazamiento + 1;
+                        mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) num >> 24;
+                        if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento)
+                            mv->TDD[posSeg][1] += 1;
                     }
                 }
             }else{
                 printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
-                mv->registros[5] = mv->TDD[1][0];
+                exit(389);
             }
 
         break;
@@ -323,8 +336,11 @@ void readSys(TMV *mv,TSistema aux){
     else
         auxOp.segmentoReg = aux.tamanio;
 
+    int posSeg = (mv->registros[13] >> 16) & 0x0000000F;
+    int puntero = (mv->registros[13]) & 0x0000FFFF;
+
     while(i<aux.cantidad){
-         printf("[%04X] ",mv->registros[13] - mv->TDD[1][0] + auxOp.desplazamiento);
+         printf("[%04X] ",puntero + auxOp.desplazamiento);
         switch (aux.formato){
         case 1:
             scanf(" %d",&dato);
@@ -401,16 +417,23 @@ void writeSys(TMV *mv,TSistema aux){
 }
 void readStringSys(TMV *mv,TSistema aux){
     char *st;
+    TOperando o;
     if(aux.tamanio > 0){
         st = (char *)malloc(aux.tamanio * sizeof(char));
     }else if(aux.tamanio == -1){
         st = (char *)malloc(16384 * sizeof(char));
     }
+    o.tipo = 0;
+    o.registro = 13;
+    o.desplazamiento = 0;
+    o.segmentoReg = 0x3;
+
     scanf(" %s",st);
     int i = 0;
     while(i < strlen(st)){
-        mv->memoria[mv->registros[13] + i] = st[i];
+        setOp(mv,o,st[i]);
         i++;
+        o.desplazamiento = i;
     }
 
 }
@@ -418,20 +441,28 @@ void writeStringSys(TMV *mv,TSistema aux){
 
     char *st;
     int cantCaracteres = 0;
+    TOperando o;
 
-    while(mv->memoria[mv->registros[13] + cantCaracteres] != '\0'){
-        cantCaracteres++;
-    }
+    o.registro = 13;
+    o.desplazamiento = 0;
+    o.segmentoReg = 0x3;
 
-    if(cantCaracteres > 0){
-        st = (char * ) malloc(cantCaracteres * (sizeof(char)));
-
-        for(int i = 0;i <= cantCaracteres;i++){
-            strcat(*st,mv->memoria[mv->registros[13] + i]);
+    if(aux.tamanio < 0){
+        while(getMem(mv,o) != '\0'){
+            printf("%c",getMem(mv,o));
+            cantCaracteres++;
+            o.desplazamiento++;
         }
-
-        printf("%s\n",*st);
+    }else{
+        while(getMem(mv,o) != '\0' && cantCaracteres < aux.tamanio){
+            printf("%c",getMem(mv,o));
+            cantCaracteres++;
+            o.desplazamiento++;
+        }
     }
+
+    printf("\n");
+
 }
 void breakPointSys(TMV *mv,TSistema aux){
     char quitOEnter;
@@ -722,7 +753,7 @@ void CALL(TMV *mv,TOperando *op){
     }
 }
 void STOP(TMV *mv, TOperando *op){
-     mv->registros[5] = mv->TDD[1][0];
+     mv->registros[5] = mv->TDD[0][1];
 }
 void RET(TMV *mv,TOperando *op){
     int aux,tamanio=0x00000000 | mv->header[6]<<8 | mv->header[7];
@@ -887,7 +918,7 @@ void imprimeOperando(TOperando op){
     switch (op.tipo){
 
     case 0x00://memoria
-              obtieneTAG(op.registro,op.segmentoReg,nombre);
+              obtieneTAG(op.registro,0,nombre);
               printf("[%s + %d]",nombre,op.desplazamiento);
         break;
     case 0x01://inmediato
@@ -1050,7 +1081,7 @@ void imprimePUSH(TInstruccionDisassembler disInstruccion){
     printf("\n");
 }
 void imprimePOP(TInstruccionDisassembler disInstruccion){
-    printf("PULL ");
+    printf("POP ");
     imprimeOperando(disInstruccion.operandos[0]);
     printf("\n");
 }

@@ -3,10 +3,7 @@ typedef struct {
     char memoria[16384];
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
-    char imagenArchivo[15];
-    unsigned short int TDD[8][2];
-    char memoria[16384];
-    char imagenArchivo[15];
+    char imagenArchivo[16];
 }TMV;
 
 typedef struct{
