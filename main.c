@@ -70,7 +70,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
     int todoOK = 1;
 
 //    archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (4).vmx","rb");
+    archBinario=fopen("sample (1).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -146,8 +146,10 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
 
                 if(tamanio > 0){
                     mv->TDD[4][0] = mv->TDD[3][0] + tamanioAnt;
-                    mv->TDD[4][1] = 0;
+                    mv->TDD[4][1] = tamanio + mv->TDD[4][0];
                     mv->registros[4] = 0x00040000;
+                    mv->registros[6] = 0x00040000 + mv->TDD[4][1];
+
                     cuentaSegmentos++;
                 }else{
                     mv->registros[4] = -1;
@@ -176,21 +178,14 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
             }
 
             *numInstrucciones = 0;
-            int banderaStop = 0;
             int contador = 0;
+
             while(fread(&(mv->memoria[contador]),sizeof(char),1,archBinario)){ //se lee el archivo binario para cargarlo en la memoria
 
-                if((mv->memoria[contador] & 0xF0) == 0xF0 && (mv->memoria[contador] & 0x01) == 0x00 && banderaStop == 0){
-                    banderaStop = 1;
+                if(contador < mv->TDD[0][1]){
                     (*numInstrucciones)++;
                 }else{
-                    if(banderaStop == 1){
-                        //printf("bandera stop\n");
-                        (mv->TDD[2][1] += 1);
-                    }else{
-                        (*numInstrucciones)++;
-                    }
-
+                    mv->TDD[2][1] += 1;
                 }
                 contador++;
             }

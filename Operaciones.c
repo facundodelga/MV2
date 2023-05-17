@@ -127,8 +127,8 @@ int getMem(TMV *mv,TOperando o){
     unsigned int num = 0;
     int posSeg = (mv->registros[o.registro] >> 16) & 0x0000000F;
     int puntero = (mv->registros[o.registro]) & 0x0000FFFF;
-    printf("\nKS: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
-    if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0] && o.desplazamiento + puntero < mv->TDD[posSeg][1]){
+    //printf("\nget: %d TDDS : %d,tamanio segmento: %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,mv->TDD[posSeg][1],puntero,o.desplazamiento);
+    if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0] && o.desplazamiento + puntero <= mv->TDD[posSeg][1]){
 
         if(o.segmentoReg == 0x00){ //segmento de 4 bytes
                 num |= mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] << 24;
@@ -227,7 +227,7 @@ void setOp(TMV *mv,TOperando o,int num){
 
     switch(o.tipo){
         case 0x00: //tipo memoria
-        printf("DS: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
+        //printf("set: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
         if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
@@ -245,7 +245,7 @@ void setOp(TMV *mv,TOperando o,int num){
                             mv->TDD[posSeg][1] += puntero + o.desplazamiento + 2;
 
                     }else{ //segmento de 1 byte
-                        mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) num >> 24;
+                        mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) num;
                         if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento)
                             mv->TDD[posSeg][1] += 1;
                     }
@@ -439,29 +439,31 @@ void readStringSys(TMV *mv,TSistema aux){
 }
 void writeStringSys(TMV *mv,TSistema aux){
 
-    char *st;
+    char *st = (char * )malloc(16384 * sizeof(char));
     int cantCaracteres = 0;
     TOperando o;
 
     o.registro = 13;
     o.desplazamiento = 0;
     o.segmentoReg = 0x3;
-
+    strcpy(st,"");
     if(aux.tamanio < 0){
-        while(getMem(mv,o) != '\0'){
-            printf("%c",getMem(mv,o));
-            cantCaracteres++;
+
+        while(getMem(mv,o) != 0x00){
+            //printf("%d ",getMem(mv,o));
+            sprintf(st,"%s%c",st,getMem(mv,o));
             o.desplazamiento++;
         }
+        sprintf(st,"%s%c",st,'\0');
+
     }else{
-        while(getMem(mv,o) != '\0' && cantCaracteres < aux.tamanio){
+        while(getMem(mv,o) != 0x00 && cantCaracteres < aux.tamanio){
             printf("%c",getMem(mv,o));
             cantCaracteres++;
             o.desplazamiento++;
         }
     }
-
-    printf("\n");
+    printf("%s\n",st);
 
 }
 void breakPointSys(TMV *mv,TSistema aux){
@@ -506,11 +508,11 @@ void sumaIP(int *ip,char operando1,char operando2){
 }
 
 void MOV(TMV *mv,TOperando *op){
-//    printf("operando 1 %d = ",getOp(mv,op[0]));
-//    printf("operando 2 %d\n",getOp(mv,op[1]));
+    //printf("operando 1 %d = ",getOp(mv,op[0]));
+    //printf("operando 2 %d\n",getOp(mv,op[1]));
     setOp(mv,op[0],getOp(mv,op[1]));
     sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
-//    printf("operando 1  = %d\n",getOp(mv,op[0]));
+    //printf("operando 1  = %d\n",getOp(mv,op[0]));
 }
 void ADD(TMV *mv, TOperando *op){
     int aux;
@@ -588,10 +590,13 @@ void SHR(TMV *mv, TOperando *op){
 }
 void AND(TMV *mv, TOperando *op){
     int aux;
+    //printf("AND operando 1 %d & \n",getOp(mv,op[0]));
+    //printf("operando 2 %d\n",getOp(mv,op[1]));
     aux=getOp(mv,op[0]) & getOp(mv,op[1]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
     sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //printf("AND operando 1 %d ",getOp(mv,op[0]));
 }
 void OR(TMV *mv, TOperando *op){
     int aux;
@@ -714,20 +719,23 @@ void NOT(TMV *mv, TOperando *op){
 
 void PUSH(TMV *mv,TOperando *op){
     int aux;
+    printf("PUSH\n");
     mv->registros[6]-=4;
-    if(mv->registros[6]<mv->registros[4]){
-        printf("ERROR: STACK OVERFLOW");
+    short int puntero = mv->registros[6] & 0x0000FFFF;
+    if(mv->registros[6] < mv->registros[4]){
+        printf("ERROR: STACK OVERFLOW\n");
         STOP(mv,op);
     }else{
         aux=getOp(mv,op[0]);
-        mv->memoria[mv->registros[6]+3]=(aux & 0x000000FF);
-        mv->memoria[mv->registros[6]+2]=(aux & 0x0000FF00)>>8;
-        mv->memoria[mv->registros[6]+1]=(aux & 0x00FF0000)>>16;
-        mv->memoria[mv->registros[6]]=(aux & 0xFF000000)>>24;
+        mv->memoria[mv->TDD[4][1] + puntero + 3]=(aux & 0x000000FF);
+        mv->memoria[mv->TDD[4][1] + puntero + 2]=(aux & 0x0000FF00)>>8;
+        mv->memoria[mv->TDD[4][1] + puntero + 1]=(aux & 0x00FF0000)>>16;
+        mv->memoria[mv->TDD[4][1] + puntero]=(aux & 0xFF000000)>>24;
     }
 }
 void POP(TMV *mv,TOperando *op){
     int aux,tamanio=0x00000000 | mv->header[6]<<8 | mv->header[7];
+    printf("POP\n");
     if(mv->registros[6]-4<tamanio){
         printf("ERROR: STACK UNDERFLOW");
         STOP(mv,op);
