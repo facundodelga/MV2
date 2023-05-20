@@ -68,9 +68,8 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
     int cuentaSegmentos = 0;
     int tamanioMemoria = 16384;
     int todoOK = 1;
-
 //    archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (1).vmx","rb");
+    archBinario=fopen("sample (2).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -102,7 +101,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 tamanio = acomodaTamanio(tamanio);
 
                 if(tamanio > 0){ // posicion 2 en la TDDS
-                    //printf("%04X\n",tamanioAnt);
+                    printf("%04X\n",tamanioAnt);
                     mv->TDD[2][0] = tamanioAnt;
                     mv->TDD[2][1] = 0;
                     mv->registros[2] = 0x00020000;
@@ -212,7 +211,7 @@ void dissasembler(TMV * mv,int numInstrucciones){
     t_funcionDisassembler imprimeFuncion[0xF2];
     TInstruccionDisassembler vecDisassembler[16384];
     unsigned int operacion;
-
+    printf("Entro al dissasembler\n");
     while(ipAssembler < numInstrucciones){ // IP menor al DS
 
         leePrimerByte(mv->memoria[ipAssembler],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);

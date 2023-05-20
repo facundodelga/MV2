@@ -2,19 +2,69 @@
 <CodeBlocks_layout_file>
 	<FileVersion major="1" minor="0" />
 	<ActiveTarget name="Debug" />
+	<File name="main.c" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2393" topLine="83" />
+		</Cursor>
+	</File>
 	<File name="Operaciones.c" open="1" top="1" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="8504" topLine="219" />
+			<Cursor1 position="25967" topLine="259" />
 		</Cursor>
+		<Folding>
+			<Collapse line="6" />
+			<Collapse line="28" />
+			<Collapse line="60" />
+			<Collapse line="86" />
+			<Collapse line="101" />
+			<Collapse line="125" />
+			<Collapse line="152" />
+			<Collapse line="223" />
+			<Collapse line="289" />
+			<Collapse line="325" />
+			<Collapse line="365" />
+			<Collapse line="417" />
+			<Collapse line="439" />
+			<Collapse line="468" />
+			<Collapse line="480" />
+			<Collapse line="795" />
+			<Collapse line="808" />
+			<Collapse line="843" />
+			<Collapse line="940" />
+			<Collapse line="958" />
+			<Collapse line="965" />
+			<Collapse line="972" />
+			<Collapse line="979" />
+			<Collapse line="986" />
+			<Collapse line="993" />
+			<Collapse line="1000" />
+			<Collapse line="1007" />
+			<Collapse line="1014" />
+			<Collapse line="1021" />
+			<Collapse line="1028" />
+			<Collapse line="1035" />
+			<Collapse line="1042" />
+			<Collapse line="1047" />
+			<Collapse line="1052" />
+			<Collapse line="1057" />
+			<Collapse line="1062" />
+			<Collapse line="1067" />
+			<Collapse line="1072" />
+			<Collapse line="1077" />
+			<Collapse line="1082" />
+			<Collapse line="1087" />
+			<Collapse line="1092" />
+			<Collapse line="1097" />
+			<Collapse line="1102" />
+			<Collapse line="1107" />
+			<Collapse line="1112" />
+			<Collapse line="1117" />
+			<Collapse line="1121" />
+		</Folding>
 	</File>
 	<File name="Operaciones.h" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="176" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="main.c" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="2376" topLine="0" />
 		</Cursor>
 	</File>
 </CodeBlocks_layout_file>
