@@ -69,7 +69,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
     int tamanioMemoria = 16384;
     int todoOK = 1;
 //    archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (2).vmx","rb");
+    archBinario=fopen("sample (1).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -108,6 +108,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                     cuentaSegmentos++;
                     tamanioAnt = tamanio;
                  }else{
+                     mv->TDD[2][0] = 0;
                     mv->registros[2] = -1;
                 }
 
@@ -116,12 +117,14 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 tamanio = acomodaTamanio(tamanio);
 
                 if(tamanio > 0){
+                    printf(" DS %04X\n",mv->TDD[2][0] + tamanioAnt);
                     mv->TDD[1][0] = mv->TDD[2][0] + tamanioAnt;
                     mv->TDD[1][1] = 0;
                     mv->registros[1] = 0x00010000;
                     cuentaSegmentos++;
                     tamanioAnt = tamanio;
                 }else{
+                     mv->TDD[1][0] = 0;
                     mv->registros[1] = -1;
                 }
 
@@ -130,6 +133,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 tamanio = acomodaTamanio(tamanio);
 
                 if(tamanio > 0){
+                    printf(" ES %04X\n",mv->TDD[1][0] + tamanioAnt);
                     mv->TDD[3][0] = mv->TDD[1][0] + tamanioAnt;
                     mv->TDD[3][1] = 0;
                     mv->registros[3] = 0x00030000;
@@ -144,11 +148,12 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 tamanio = acomodaTamanio(tamanio);
 
                 if(tamanio > 0){
+
                     mv->TDD[4][0] = mv->TDD[3][0] + tamanioAnt;
                     mv->TDD[4][1] = tamanio + mv->TDD[4][0];
                     mv->registros[4] = 0x00040000;
-                    mv->registros[6] = 0x00040000 + mv->TDD[4][1];
-
+                    mv->registros[6] = 0x00040000 + tamanio;
+                    printf("comienzo SS : [%04X] TAMANIO SS : [%04X] SP %d \n",mv->TDD[3][0] + tamanioAnt,mv->TDD[4][1], 0x00040000 + tamanio);
                     cuentaSegmentos++;
                 }else{
                     mv->registros[4] = -1;
