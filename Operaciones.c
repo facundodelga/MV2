@@ -976,7 +976,16 @@ void imprimeOperando(TOperando op){
 
     case 0x00://memoria
               obtieneTAG(op.registro,0,nombre);
-              printf("[%s + %d]",nombre,op.desplazamiento);
+              switch (op.segmentoReg){
+              case 0:printf("l[%s + %d]",nombre,op.desplazamiento);
+                  break;
+              case 2:printf("w[%s + %d]",nombre,op.desplazamiento);
+                  break;
+              case 3:printf("b[%s + %d]",nombre,op.desplazamiento);
+                  break;
+              default:printf("[%s + %d]",nombre,op.desplazamiento);
+                  break;
+              }
         break;
     case 0x01://inmediato
               printf(" %02X",op.desplazamiento);
