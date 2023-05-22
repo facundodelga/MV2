@@ -49,15 +49,15 @@
 
 1683918201 c:\users\pedro\documents\github\mv2\funciones.h
 
-1684615296 source:c:\users\pedro\documents\github\mv2\main.c
+1684715168 source:c:\users\pedro\documents\github\mv2\main.c
 	<stdio.h>
 	<stdlib.h>
 	"Operaciones.h"
 	<string.h>
 
-1684363346 c:\users\pedro\documents\github\mv2\operaciones.h
+1684712822 c:\users\pedro\documents\github\mv2\operaciones.h
 
-1684615660 source:c:\users\pedro\documents\github\mv2\operaciones.c
+1684713509 source:c:\users\pedro\documents\github\mv2\operaciones.c
 	<stdlib.h>
 	<stdio.h>
 	<string.h>
