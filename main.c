@@ -5,7 +5,7 @@
 
 void cargaVectorDeFunciones(TOperaciones *);
 unsigned short int acomodaTamanio(unsigned short int tamanio);
-void cargaMV(TMV *, char * [],int ,int *,char *);
+void cargaMV(TMV *, char * [],unsigned int ,int *,char *);
 void dissasembler(TMV *, int );
 
 //    printf("operacion %02x\n",operacion);
@@ -20,34 +20,50 @@ int main(int argc,char *argv[]){
     char version;
     int numInstrucciones;
     TMV mv;
+    int entraDissasembler = 0;
+    unsigned int tamanioMemoria = 0;
+    if(argc > 1){
 
-    //if(argc > 1){
-            cargaMV(&mv,argv,argc,&numInstrucciones,&version);
+            for (int i = 2; i < argc; i++) {
+                // Verificar [filename.vmi]
+                int len = strlen(argv[i]);
+                if (len >= 4 && strcmp(argv[i] + len - 4, ".vmi") == 0) {
+                    strcpy(mv.imagenArchivo,argv[i]);
+                }
+
+                // Verificar [m=M]
+                if (sscanf(argv[i],"m=%d",&tamanioMemoria)) {
+                    printf("m=M: %s\n", argv[i]);
+                }
+
+                // Verificar [-d]
+                if (strcmp(argv[i], "-d") == 0) {
+                    entraDissasembler = 1;
+                }
+            }
+
+            cargaMV(&mv,argv,tamanioMemoria,&numInstrucciones,&version);
             switch (version){
             case 1:
                 while(mv.registros[5] < mv.TDD[0][1])
                     ejecutaCicloProcesador(&mv,version);
-//                if(argc >= 3){
-//                    if(strcmp(argv[2],"-d") == 0){
-//                        printf("\n");
-//                        dissasembler(&mv,numInstrucciones);
-//                    }
-//                }
-                dissasembler(&mv,numInstrucciones);
+                if(strcmp(argv[argc-1],"-d") == 0){
+                        printf("\n");
+                        dissasembler(&mv,numInstrucciones);
+                }
+
                 break;
             case 2:
                 while(mv.registros[5] < mv.TDD[0][1] || mv.registros[5] < numInstrucciones)
                     ejecutaCicloProcesador(&mv,version);
-//                if(argc >= 3){
-//                    if(strcmp(argv[argc],"-d") == 0){
-//                        printf("\n");
-//                        dissasembler(&mv,numInstrucciones);
-//                    }
-//                }
-                dissasembler(&mv,numInstrucciones);
+
+                if(entraDissasembler){
+                    dissasembler(&mv,numInstrucciones);
+                }
+
                 break;
             }
-    //}
+    }
     printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
     return 0;
 }
@@ -61,15 +77,15 @@ unsigned short int acomodaTamanio(unsigned short int tamanio){
     return aux2 | aux1;
 }
 
-void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version){
+void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstrucciones,char *version){
     unsigned short int tamanio = 0,tamanioAnt = 0,i;
     char *header = (char * )malloc(6 * sizeof(char));
     FILE *archBinario;
     int cuentaSegmentos = 0;
-    int tamanioMemoria = 16384;
+    int tamanioTotal = 0;
     int todoOK = 1;
-//    archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (1).vmx","rb");
+    archBinario=fopen(args[1],"rb");
+    //archBinario=fopen("sample (3).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -99,9 +115,9 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamanio del KS
 
                 tamanio = acomodaTamanio(tamanio);
-
+                tamanioTotal = tamanio;
                 if(tamanio > 0){ // posicion 2 en la TDDS
-                    printf("%04X\n",tamanioAnt);
+                    //printf("%04X\n",tamanioAnt);
                     mv->TDD[2][0] = tamanioAnt;
                     mv->TDD[2][1] = 0;
                     mv->registros[2] = 0x00020000;
@@ -115,9 +131,9 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamanio DS
 
                 tamanio = acomodaTamanio(tamanio);
-
+                tamanioTotal += tamanio;
                 if(tamanio > 0){
-                    printf(" DS %04X\n",mv->TDD[2][0] + tamanioAnt);
+                   // printf(" DS %04X\n",mv->TDD[2][0] + tamanioAnt);
                     mv->TDD[1][0] = mv->TDD[2][0] + tamanioAnt;
                     mv->TDD[1][1] = 0;
                     mv->registros[1] = 0x00010000;
@@ -131,9 +147,9 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamanio ES
 
                 tamanio = acomodaTamanio(tamanio);
-
+                tamanioTotal += tamanio;
                 if(tamanio > 0){
-                    printf(" ES %04X\n",mv->TDD[1][0] + tamanioAnt);
+                    //printf(" ES %04X\n",mv->TDD[1][0] + tamanioAnt);
                     mv->TDD[3][0] = mv->TDD[1][0] + tamanioAnt;
                     mv->TDD[3][1] = 0;
                     mv->registros[3] = 0x00030000;
@@ -146,34 +162,25 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 fread(&tamanio,sizeof(unsigned short int),1,archBinario); //Leo el tamanio SS
 
                 tamanio = acomodaTamanio(tamanio);
-
+                tamanioTotal += tamanio;
                 if(tamanio > 0){
 
                     mv->TDD[4][0] = mv->TDD[3][0] + tamanioAnt;
                     mv->TDD[4][1] = tamanio + mv->TDD[4][0];
                     mv->registros[4] = 0x00040000;
                     mv->registros[6] = 0x00040000 + tamanio;
-                    printf("comienzo SS : [%04X] TAMANIO SS : [%04X] SP %d \n",mv->TDD[3][0] + tamanioAnt,mv->TDD[4][1], 0x00040000 + tamanio);
+                    //printf("comienzo SS : [%04X] TAMANIO SS : [%04X] SP %d \n",mv->TDD[3][0] + tamanioAnt,mv->TDD[4][1], 0x00040000 + tamanio);
                     cuentaSegmentos++;
                 }else{
                     mv->registros[4] = -1;
                 }
 
-//                if(argc >= 3){
-//                    if(sscanf(args[3],"m=%d",&tamanioMemoria) || sscanf(args[4],"m=%d",&tamanioMemoria)){ //si existe el parametro m=M
-//
-//                        if(mv->TDD[cuentaSegmentos][1] < tamanioMemoria){
-//                            printf("ERROR! ASIGNA MAL LA MEMORIA PRINCIPAL POR PARAMETRO... BYE BYE\n");
-//                            mv->registros[5] = *numInstrucciones;
-//                            todoOK = 0;
-//                        }
-//                    }
-//
-//                    int len = strlen(args[3]);
-//                    if (len >= 4 && strcmp(args[3] + len - 4, ".vmi") == 0) {
-//                        strcpy(mv->imagenArchivo,args[3]);
-//                    }
-//                }
+
+                if(tamanioParam > 0 && tamanioTotal > tamanioParam){
+                    printf("ERROR! LA MEMORIA PROPORCIONADA POR PARAMETRO ES INSUFICIENTE PARA EJECUTAR... BYE BYE\n");
+                    exit(0xFF);
+                }
+
             }else{
                 mv->TDD[1][0] = tamanio + 1;
                 mv->TDD[1][1] = 16384;
@@ -200,11 +207,11 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                 mv->registros[5]=0; //IP == 0
         }else{
             printf("ERROR! DEBE PROPORCIONAR DE UN NOMBRE DE ARCHIVO CON EXTENCION .VMX... BYE BYE\n");
-            mv->registros[5] = mv->TDD[0][1];
+            exit(0xFF);
         }
     }else{
         printf("EL ARCHIVO BINARIO NO EXISTE\n");
-        mv->registros[5] = mv->TDD[0][1];
+        exit(0xFF);
     }
 
 }
@@ -216,7 +223,9 @@ void dissasembler(TMV * mv,int numInstrucciones){
     t_funcionDisassembler imprimeFuncion[0xF2];
     TInstruccionDisassembler vecDisassembler[16384];
     unsigned int operacion;
-    printf("Entro al dissasembler\n");
+    printf("\n==============\n");
+    printf("\nDISASSEMBLER :\n");
+    printf("\n==============\n");
     while(ipAssembler < numInstrucciones){ // IP menor al DS
 
         leePrimerByte(mv->memoria[ipAssembler],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);

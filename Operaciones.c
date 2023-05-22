@@ -253,7 +253,7 @@ void setOp(TMV *mv,TOperando o,int num){
                 }
             }else{
                 printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
-                exit(389);
+                mv->registros[5] = mv->TDD[0][1];
             }
 
         break;
