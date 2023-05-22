@@ -21,29 +21,29 @@ int main(int argc,char *argv[]){
     int numInstrucciones;
     TMV mv;
 
-  //  if(argc > 1){
+    //if(argc > 1){
             cargaMV(&mv,argv,argc,&numInstrucciones,&version);
             switch (version){
             case 1:
                 while(mv.registros[5] < mv.TDD[0][1])
                     ejecutaCicloProcesador(&mv,version);
-                //if(argc >= 3){
-                  //  if(strcmp(argv[2],"-d") == 0){
-                    //    printf("\n");
-                      //  dissasembler(&mv,numInstrucciones);
-                    //}
-                //}
+//                if(argc >= 3){
+//                    if(strcmp(argv[2],"-d") == 0){
+//                        printf("\n");
+//                        dissasembler(&mv,numInstrucciones);
+//                    }
+//                }
                 dissasembler(&mv,numInstrucciones);
                 break;
             case 2:
                 while(mv.registros[5] < mv.TDD[0][1] || mv.registros[5] < numInstrucciones)
                     ejecutaCicloProcesador(&mv,version);
-                //if(argc >= 3){
-                  //  if(strcmp(argv[argc],"-d") == 0){
-                    //    printf("\n");
-                      //  dissasembler(&mv,numInstrucciones);
-                    //}
-                //}
+//                if(argc >= 3){
+//                    if(strcmp(argv[argc],"-d") == 0){
+//                        printf("\n");
+//                        dissasembler(&mv,numInstrucciones);
+//                    }
+//                }
                 dissasembler(&mv,numInstrucciones);
                 break;
             }
@@ -51,6 +51,7 @@ int main(int argc,char *argv[]){
     printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
     return 0;
 }
+
 
 unsigned short int acomodaTamanio(unsigned short int tamanio){
     unsigned short int aux1 = 0,aux2 = 0;
@@ -68,7 +69,7 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
     int tamanioMemoria = 16384;
     int todoOK = 1;
 //    archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (3).vmx","rb");
+    archBinario=fopen("sample (1).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -158,22 +159,22 @@ void cargaMV(TMV *mv, char *args[],int argc,int *numInstrucciones,char *version)
                     mv->registros[4] = -1;
                 }
 
-               // if(argc >= 3){
-               //     if(sscanf(args[3],"m=%d",&tamanioMemoria) || sscanf(args[4],"m=%d",&tamanioMemoria)){ //si existe el parametro m=M
-
-                 //       if(mv->TDD[cuentaSegmentos][1] < tamanioMemoria){
-                   //         printf("ERROR! ASIGNA MAL LA MEMORIA PRINCIPAL POR PARAMETRO... BYE BYE\n");
-                     //       mv->registros[5] = *numInstrucciones;
-                       //     todoOK = 0;
-                        //}
-                    //}
-
-                    //int len = strlen(args[3]);
-                    //if (len >= 4 && strcmp(args[3] + len - 4, ".vmi") == 0) {
-                    //    strcpy(mv->imagenArchivo,args[3]);
-                    //}
-                //}
-            //}else{
+//                if(argc >= 3){
+//                    if(sscanf(args[3],"m=%d",&tamanioMemoria) || sscanf(args[4],"m=%d",&tamanioMemoria)){ //si existe el parametro m=M
+//
+//                        if(mv->TDD[cuentaSegmentos][1] < tamanioMemoria){
+//                            printf("ERROR! ASIGNA MAL LA MEMORIA PRINCIPAL POR PARAMETRO... BYE BYE\n");
+//                            mv->registros[5] = *numInstrucciones;
+//                            todoOK = 0;
+//                        }
+//                    }
+//
+//                    int len = strlen(args[3]);
+//                    if (len >= 4 && strcmp(args[3] + len - 4, ".vmi") == 0) {
+//                        strcpy(mv->imagenArchivo,args[3]);
+//                    }
+//                }
+            }else{
                 mv->TDD[1][0] = tamanio + 1;
                 mv->TDD[1][1] = 16384;
 
@@ -215,7 +216,7 @@ void dissasembler(TMV * mv,int numInstrucciones){
     t_funcionDisassembler imprimeFuncion[0xF2];
     TInstruccionDisassembler vecDisassembler[16384];
     unsigned int operacion;
-    //printf("Entro al dissasembler\n");
+    printf("Entro al dissasembler\n");
     while(ipAssembler < numInstrucciones){ // IP menor al DS
 
         leePrimerByte(mv->memoria[ipAssembler],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
@@ -257,5 +258,6 @@ void dissasembler(TMV * mv,int numInstrucciones){
     }
 
 }
+
 
 
