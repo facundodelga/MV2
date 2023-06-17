@@ -1,9 +1,16 @@
+typedef char st255[255];
+typedef char st21[21];
+
 typedef struct {
     char header[8];
     char memoria[16384];
+    int memorySize;
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
     char imagenArchivo[16];
+    st255 discs[255];
+    char lastStateAH;
+    char lastValidSegment;
 }TMV;
 
 typedef struct{
@@ -20,14 +27,26 @@ typedef struct {
     char formato;
 }TSistema;
 
+typedef struct {
+    int code,invalidInstruction;
+}TError;
+
+//Tipo para Funcion de errores
+
+typedef st21 TVerror[6];
+void error(TMV *mv,TError e);
+
 //Funcion que ejecuta el ciclo del procesador
 void ejecutaCicloProcesador(TMV *mv,char version);
 
+//Funciones de manejo de operandos
 int getOp(TMV *,TOperando );
 void setOp(TMV *,TOperando ,int );
 int getReg(TMV *,TOperando );
 int getMem(TMV *,TOperando );
 void recuperaOperandos(TMV *,TOperando *,int ); //mv, vector de operandos, ip
+
+//Funciones ejecucion del procesador
 void sumaIP(int *ip,char operando1,char operando2);
 void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion);
 
@@ -37,7 +56,20 @@ void readSys(TMV *mv,TSistema aux);
 void writeSys(TMV *mv,TSistema aux);
 void readStringSys(TMV *mv,TSistema aux);
 void writeStringSys(TMV *mv,TSistema aux);
+void clearScren(TMV *mv,TSistema aux);
+void discAccess(TMV *mv,TSistema aux);
+void dinamicSegments(TMV *mv,TSistema aux);
 void breakPointSys(TMV *mv,TSistema aux);
+
+//Funciones del discAccess
+void consultLastState(TMV *mv);
+void readDisc(TMV *mv);
+void writeDisc(TMV *mv);
+void obtainDiscParameters(TMV *mv);
+
+//Funciones del dinamicSegments
+void consultSegment(TMV *mv);
+void createNewSegment(TMV *mv);
 
 //Funciones del breakpoint
 void creaArchivoDeImagen(TMV mv);
@@ -47,6 +79,7 @@ typedef void (*TOperaciones)(TMV *,TOperando *);
 typedef void (*t_funcionSys)(TMV *,TSistema);
 
 void cargaVectorDeFunciones(TOperaciones *v);
+void loadSYSOperationArray(t_funcionSys *vecLlamadas);
 
 void MOV(TMV *mv, TOperando *op);
 void ADD(TMV *mv, TOperando *op);
