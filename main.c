@@ -22,7 +22,7 @@ int main(int argc,char *argv[]){
     TMV mv;
     int entraDissasembler = 0;
     unsigned int tamanioMemoria = 0;
-    //if(argc > 1){
+    if(argc > 1){
             int ipAux = 0;
             int cantDiscos = 0;
             for (int i = 2; i < argc; i++) {
@@ -85,8 +85,8 @@ int main(int argc,char *argv[]){
 
                 break;
             }
-            dissasembler(&mv,numInstrucciones);
-   // }
+            //dissasembler(&mv,numInstrucciones);
+    }
     printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
     return 0;
 }
@@ -106,8 +106,8 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
     FILE *archBinario;
     int tamanioTotal = 0;
     int todoOK = 1;
-    //archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (4).vmx","rb");
+    archBinario=fopen(args[1],"rb");
+    //archBinario=fopen("sample (4).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
