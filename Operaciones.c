@@ -4,7 +4,6 @@
 #include <math.h>
 #include "Operaciones.h"
 
-
 //FUNCIONES DE LA MAQUINA
 void error(TMV *mv,TError e){
     TVerror typeError= {"Instrucción invalida","Division por cero","Fallo de segmento","Memoria insuficiente","STACK OVERFLOW","STACK UNDERFLOW"};
@@ -14,14 +13,48 @@ void error(TMV *mv,TError e){
     mv->registros[5] = mv->TDD[0][1];
 }
 
-void setCC(TMV *mv,int numero){
-    if(numero==0)
-        mv->registros[8] = 0x40000000;
-    if(numero<0)
-        mv->registros[8] = 0x80000000;
-    if(numero>0)
-        mv->registros[8] = 0x00000000;
+void loadSYSOperationArray(t_funcionSys *vecLlamadas){
+    vecLlamadas[0x1] = readSys;
+    vecLlamadas[0x2] = writeSys;
+    vecLlamadas[0x3] = readStringSys;
+    vecLlamadas[0x4] = writeStringSys;
+    vecLlamadas[0x7] = clearScren;
+    vecLlamadas[0xD] = discAccess;
+    vecLlamadas[0xE] = dinamicSegments;
+    vecLlamadas[0xF] = breakPointSys;
 }
+
+void ejecutaCicloProcesador(TMV *mv,char version,int ip){
+    unsigned int condicion,operacion;
+    TOperando operandos[2];
+    TOperaciones vecFunciones[256];
+
+    cargaVectorDeFunciones(vecFunciones);
+    leePrimerByte(mv->memoria[mv->registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
+    //printf("IP: %04X, operacion: %02X, operando 1: %6X, operando 2: %d\n",mv->registros[5],operacion,getOp(mv,operandos[0]),getOp(mv,operandos[1]));
+
+    sumaIP(&(mv->registros[5]),operandos[0].tipo,operandos[1].tipo);
+
+    recuperaOperandos(mv,operandos,ip);
+
+    switch (version){
+    case 1: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0);
+        break;
+    case 2: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3F) || (operacion >= 0xF0 && operacion < 0xF2);
+        break;
+    }
+
+
+    if(condicion)
+         vecFunciones[operacion](mv, operandos);
+    else{
+        TError e;
+        e.code=0;
+        e.invalidInstruction=operacion;
+        error(mv,e);
+    }
+}
+
 
 void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int *operacion){
     if((instruccion & 0xF0) == 0xF0){
@@ -52,108 +85,6 @@ void leePrimerByte(char instruccion,char *operando1,char *operando2,unsigned int
 //    printf("%d\n",*operando2);
 }
 
-void cargaVectorDeFunciones(TOperaciones *v){
-    //operaciones de 2 op
-    v[0x0] = MOV;
-    v[0x1] = ADD;
-    v[0x2] = SUB;
-    v[0x3] = SWAP;
-    v[0x4] = MUL;
-    v[0x5] = DIV;
-    v[0x6] = CMP;
-    v[0x7] = SHL;
-    v[0x8] = SHR;
-    v[0x9] = AND;
-    v[0xA] = OR;
-    v[0xB] = XOR;
-    //operaciones de 1 op
-    v[0x30] = SYS;
-    v[0x31] = JMP;
-    v[0x32] = JZ;
-    v[0x33] = JP;
-    v[0x34] = JN;
-    v[0x35] = JNZ;
-    v[0x36] = JNP;
-    v[0x37] = JNN;
-    v[0x38] = LDL;
-    v[0x39] = LDH;
-    v[0x3A] = RND;
-    v[0x3B] = NOT;
-    v[0x3C] = PUSH;
-    v[0x3D] = POP;
-    v[0x3E] = CALL;
-    //operaciones sin op
-    v[0xF0] = STOP;
-    v[0xF1] = RET;
-}
-void loadSYSOperationArray(t_funcionSys *vecLlamadas){
-    vecLlamadas[0x1] = readSys;
-    vecLlamadas[0x2] = writeSys;
-    vecLlamadas[0x3] = readStringSys;
-    vecLlamadas[0x4] = writeStringSys;
-    vecLlamadas[0x7] = clearScren;
-    vecLlamadas[0xD] = discAccess;
-    vecLlamadas[0xE] = dinamicSegments;
-    vecLlamadas[0xF] = breakPointSys;
-}
-
-void sumaIP(int *ip,char operando1,char operando2){
-    int op1,op2;
-    if(operando1 == 0x0){
-        op1 = 3;
-    }else{
-        if(operando1 == 0x1){
-            op1 = 2;
-        }else{
-            if(operando1 == 0x2)
-                op1 = 1;
-            else
-                op1 = 0;
-        }
-    }
-    if(operando2 == 0x0){ // memoria
-        op2 = 3;
-    }else{
-        if(operando2 == 0x1){ // inmediato
-            op2 = 2;
-        }else{
-            if(operando2 == 0x2) // registro
-                op2= 1;
-            else
-                op2 = 0;
-        }
-    }
-    *ip += 1 + op1 + op2;
-}
-
-void ejecutaCicloProcesador(TMV *mv,char version){
-    unsigned int condicion,operacion;
-    TOperando operandos[2];
-    TOperaciones vecFunciones[256];
-
-    cargaVectorDeFunciones(vecFunciones);
-    leePrimerByte(mv->memoria[mv->registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-    recuperaOperandos(mv,operandos,mv->registros[5]);
-    switch (version){
-    case 1: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0);
-        break;
-    case 2: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3F) || (operacion >= 0xF0 && operacion < 0xF2);
-        break;
-    }
-
-//    printf("IP: %04X, operacion: %02X, operando 1: %6X, operando 2: %d\n",mv->registros[5],operacion,getOp(mv,operandos[0]),getOp(mv,operandos[1]));
-
-    if(condicion)
-         vecFunciones[operacion](mv, operandos);
-    else{
-        TError e;
-        e.code=0;
-        e.invalidInstruction=operacion;
-        error(mv,e);
-    }
-}
-
-//GESTION OPERANDOS
 int getOp(TMV *mv,TOperando o){
     char t_reg = 0x02, t_mem = 0x00, t_inm = 0x01;
 
@@ -298,7 +229,7 @@ void setOp(TMV *mv,TOperando o,int num){
 
     switch(o.tipo){
         case 0x00: //tipo memoria
-        //printf("set: %d TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
+        //printf("set: %02X TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
         if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
@@ -323,7 +254,7 @@ void setOp(TMV *mv,TOperando o,int num){
                 }
             }else{
                 printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
-                exit(389);
+                mv->registros[5] = mv->TDD[0][1];
             }
 
         break;
@@ -358,14 +289,76 @@ void setOp(TMV *mv,TOperando o,int num){
             break;
     }
 }
+void cargaVectorDeFunciones(TOperaciones *v){
+    //operaciones de 2 op
+    v[0x0] = MOV;
+    v[0x1] = ADD;
+    v[0x2] = SUB;
+    v[0x3] = SWAP;
+    v[0x4] = MUL;
+    v[0x5] = DIV;
+    v[0x6] = CMP;
+    v[0x7] = SHL;
+    v[0x8] = SHR;
+    v[0x9] = AND;
+    v[0xA] = OR;
+    v[0xB] = XOR;
+    //operaciones de 1 op
+    v[0x30] = SYS;
+    v[0x31] = JMP;
+    v[0x32] = JZ;
+    v[0x33] = JP;
+    v[0x34] = JN;
+    v[0x35] = JNZ;
+    v[0x36] = JNP;
+    v[0x37] = JNN;
+    v[0x38] = LDL;
+    v[0x39] = LDH;
+    v[0x3A] = RND;
+    v[0x3B] = NOT;
+    v[0x3C] = PUSH;
+    v[0x3D] = POP;
+    v[0x3E] = CALL;
+    //operaciones sin op
+    v[0xF0] = STOP;
+    v[0xF1] = RET;
+}
 
 
-//OPERACIONES
+void sumaIP(int *ip,char operando1,char operando2){
+    int op1,op2;
+    if(operando1 == 0x0){
+        op1 = 3;
+    }else{
+        if(operando1 == 0x1){
+            op1 = 2;
+        }else{
+            if(operando1 == 0x2)
+                op1 = 1;
+            else
+                op1 = 0;
+        }
+    }
+    if(operando2 == 0x0){ // memoria
+        op2 = 3;
+    }else{
+        if(operando2 == 0x1){ // inmediato
+            op2 = 2;
+        }else{
+            if(operando2 == 0x2) // registro
+                op2= 1;
+            else
+                op2 = 0;
+        }
+    }
+    *ip += 1 + op1 + op2;
+}
+
 void MOV(TMV *mv,TOperando *op){
 //    printf("operando 1 %d = ",getOp(mv,op[0]));
 //    printf("operando 2 %d\n",getOp(mv,op[1]));
     setOp(mv,op[0],getOp(mv,op[1]));
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 //    printf("operando 1  = %d\n",getOp(mv,op[0]));
 }
 void ADD(TMV *mv, TOperando *op){
@@ -373,7 +366,7 @@ void ADD(TMV *mv, TOperando *op){
     aux = getOp(mv,op[0]) + getOp(mv,op[1]);
     //printf("suma operando 1 %d + ",getOp(mv,op[0]));
     //printf(" operando 2 %d = %d\n",getOp(mv,op[1]),aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
 
@@ -383,7 +376,7 @@ void SUB(TMV *mv, TOperando *op){
     aux = getOp(mv,op[0]) - getOp(mv,op[1]);
 //    printf("sub operando 1 %d - ",getOp(mv,op[0]));
 //    printf("operando 2 %d = %d\n",getOp(mv,op[1]),aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
 
@@ -394,7 +387,7 @@ void MUL(TMV *mv, TOperando *op){
     //printf("mul operando 1 %d * ",getOp(mv,op[0]));
     //printf("operando 2 %d = %d\n",getOp(mv,op[1]),aux);
     //printf("%04X * %04X = \n",getOp(mv,op[0]),getOp(mv,op[1]));
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     setOp(mv,op[0],aux);
     //printf("====== %04X\n",getOp(mv,op[0]));
     setCC(mv,aux);
@@ -407,13 +400,13 @@ void DIV(TMV *mv, TOperando *op){
     if(getOp(mv,op[1])){
         aux = (int) getOp(mv,op[0]) / getOp(mv,op[1]);
         mv->registros[9] = getOp( mv,op[0]) % getOp( mv,op[1]);
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
         setOp(mv,op[0],aux);
         setCC(mv,aux);
     }else{
-        TError e;
-        e.code=1;
-        error(mv,e);
+        printf("Error fatal, esta intentando dividir por 0\n");
+        printf("El programa se detendra");
+        STOP(mv,op);
     }
 }
 void SWAP(TMV *mv, TOperando *op){
@@ -423,7 +416,7 @@ void SWAP(TMV *mv, TOperando *op){
     aux=getOp(mv,op[0]);
     setOp(mv,op[0],getOp(mv,op[1]));
     setOp(mv,op[1],aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void CMP(TMV *mv, TOperando *op){
     int aux;
@@ -432,18 +425,18 @@ void CMP(TMV *mv, TOperando *op){
 //    printf("operando 2 %08X\n",getOp(mv,op[1]));
 //    printf("====== %d\n",aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void SHL(TMV *mv, TOperando *op){
     setOp(mv,op[0],getOp(mv,op[0]) << getOp(mv,op[1]));
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void SHR(TMV *mv, TOperando *op){
     int aux;
     aux = getOp(mv,op[0]) >> getOp(mv,op[1]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void AND(TMV *mv, TOperando *op){
     int aux;
@@ -452,7 +445,7 @@ void AND(TMV *mv, TOperando *op){
     aux=getOp(mv,op[0]) & getOp(mv,op[1]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
    // printf("AND operando 1 %d ",getOp(mv,op[0]));
 }
 void OR(TMV *mv, TOperando *op){
@@ -462,7 +455,7 @@ void OR(TMV *mv, TOperando *op){
     aux=getOp(mv,op[0]) | getOp(mv,op[1]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void XOR(TMV *mv, TOperando *op){
     int aux;
@@ -471,7 +464,7 @@ void XOR(TMV *mv, TOperando *op){
     aux=getOp(mv,op[0]) ^ getOp(mv,op[1]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void SYS(TMV *mv, TOperando *op){
     t_funcionSys vecLlamadas[0xF1];
@@ -492,7 +485,7 @@ void SYS(TMV *mv, TOperando *op){
 
     vecLlamadas[llamada](mv,aux);
 
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JMP(TMV *mv, TOperando *op){
     int aux;
@@ -503,69 +496,69 @@ void JMP(TMV *mv, TOperando *op){
 void JZ(TMV *mv, TOperando *op){
     unsigned int aux;
     aux = getOp(mv,op[0]);
-    if((mv->registros[8] & 0xF0000000) == 0x40000000){
+    if((mv->registros[8] & 0xF0000000) == 0x40000000)
        mv->registros[5] = aux;
        //printf("Jz  %02X\n",mv->registros[5]);
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JP(TMV *mv, TOperando *op){
-    if((mv->registros[8] & 0xF0000000) == 0x00000000){
+    if((mv->registros[8] & 0xF0000000) == 0x00000000)
         mv->registros[5] = getOp(mv,op[0]);
         //printf("JP  %02X\n",mv->registros[5]);
 
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JN(TMV *mv, TOperando *op){
-    if((mv->registros[8] & 0xF0000000) == 0x80000000){
+    if((mv->registros[8] & 0xF0000000) == 0x80000000)
         mv->registros[5] = getOp(mv,op[0]);
        //printf("Jn  %02X\n",mv->registros[5]);
 
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNZ(TMV *mv, TOperando *op){
-    if((mv->registros[8] & 0xF0000000) != 0x40000000){
+    if((mv->registros[8] & 0xF0000000) != 0x40000000)
         mv->registros[5] = getOp(mv,op[0]);
         //printf("JNZ  %02X\n",mv->registros[5]);
 
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNP(TMV *mv, TOperando *op){
-    if((mv->registros[8] & 0xF0000000)  != 0x00000000){
+    if((mv->registros[8] & 0xF0000000)  != 0x00000000)
         mv->registros[5] = getOp(mv,op[0]);
         //printf("JNP  %02X\n",mv->registros[5]);
 
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNN(TMV *mv, TOperando *op){
 
-    if((mv->registros[8] & 0xF0000000) != 0x80000000){
+    if((mv->registros[8] & 0xF0000000) != 0x80000000)
         mv->registros[5] = getOp(mv,op[0]);
         //printf("JNN  %02X\n",mv->registros[5]);
 
-    }else
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //}else
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void LDL(TMV *mv, TOperando *op){
     mv->registros[9] &= 0xFFFF0000;
     //printf("LDL %02X\n",getOp(mv,op[0]));
     mv->registros[9] |= (getOp(mv,op[0]) & 0x0000FFFF);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void LDH(TMV *mv, TOperando *op){
     mv->registros[9] &= 0x0000FFFF;
     //printf("LDH %02X\n",getOp(mv,op[0]));
     mv->registros[9] |= ((getOp(mv,op[0])<<16) & 0xFFFF0000);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void RND(TMV *mv, TOperando *op){
     //printf("RND %02X\n",getOp(mv,op[0]));
     mv->registros[9]= rand() % (getOp(mv,op[0]) - 1);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void NOT(TMV *mv, TOperando *op){
     int aux;
@@ -573,51 +566,54 @@ void NOT(TMV *mv, TOperando *op){
     aux=getOp(mv,op[0]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
+
 void PUSH(TMV *mv,TOperando *op){
     int aux;
     //printf("PUSH\n");
     mv->registros[6]-=4;
     short int puntero = mv->registros[6] & 0x0000FFFF;
+    int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
+
     if(mv->registros[6] < mv->registros[4]){
-        TError e;
-        e.code=4;
-        error(mv,e);
+        printf("ERROR: STACK OVERFLOW\n");
+        STOP(mv,op);
     }else{
         aux=getOp(mv,op[0]);
 
 //        printf("VALOR PUSH [%08X]\n",aux);
 
-        mv->memoria[mv->TDD[4][0] + puntero + 3] = (aux & 0x000000FF);
-        mv->memoria[mv->TDD[4][0] + puntero + 2] = (aux >> 8) & 0x000000FF;
-        mv->memoria[mv->TDD[4][0] + puntero + 1] = (aux >> 16) & 0x000000FF;
-        mv->memoria[mv->TDD[4][0] + puntero] = (aux >> 24) & 0x000000FF;
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 3] = (aux & 0x000000FF);
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 2] = (aux >> 8) & 0x000000FF;
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 1] = (aux >> 16) & 0x000000FF;
+        mv->memoria[mv->TDD[posSeg][0] + puntero] = (aux >> 24) & 0x000000FF;
 
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     }
 
 }
 void POP(TMV *mv,TOperando *op){
     int aux = 0;
-    short int puntero = mv->registros[6] & 0x0000FFFF;
+    int puntero = mv->registros[6] & 0x0000FFFF;
+    int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
     //printf("POP\n");
-    if(mv->TDD[4][1] < puntero){
-        TError e;
-        e.code=5;
-        error(mv,e);
+
+    //printf("PUNTERO : %08X posSeg: %d TDD : %08X\n",puntero,posSeg,mv->TDD[posSeg][1]);
+    if(mv->TDD[posSeg][1] < puntero){
+        printf("ERROR: STACK UNDERFLOW\n");
+        STOP(mv,op);
     }else{
-//        printf("Entro al pop\n");
-        //aux=(mv->memoria[mv->TDD[4][1]+mv->registros[6]]<<24) | (mv->memoria[mv->TDD[4][1]+mv->registros[6]+1]<<16) | (mv->memoria[mv->TDD[4][1]+mv->registros[6]+2]<<8) | mv->memoria[mv->TDD[4][1]+mv->registros[6]+3];
-        aux |= mv->memoria[mv->TDD[4][0] + puntero] << 24;
-        aux |= (0x00FF0000 & (mv->memoria[mv->TDD[4][0] + puntero + 1] << 16));
-        aux |= (0x0000FF00 & (mv->memoria[mv->TDD[4][0] + puntero + 2] << 8));
-        aux |= (0x000000FF & (mv->memoria[mv->TDD[4][0] + puntero + 3]));
+
+        aux |= mv->memoria[mv->TDD[posSeg][0] + puntero] << 24;
+        aux |= (0x00FF0000 & (mv->memoria[mv->TDD[posSeg][0] + puntero + 1] << 16));
+        aux |= (0x0000FF00 & (mv->memoria[mv->TDD[posSeg][0] + puntero + 2] << 8));
+        aux |= (0x000000FF & (mv->memoria[mv->TDD[posSeg][0] + puntero + 3]));
         setOp(mv,op[0],aux);
 //        printf("Valor del POP: %04X\n",aux);
 //        printf("valor de memoria: %02X %02X %02X %02X\n",mv->memoria[mv->TDD[4][1]+ puntero + 3],mv->memoria[mv->TDD[4][1]+ puntero + 2],mv->memoria[mv->TDD[4][1]+ puntero + 1],mv->memoria[mv->TDD[4][1]+puntero]);
         mv->registros[6]+=4;
-        sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     }
 
 }
@@ -626,19 +622,20 @@ void CALL(TMV *mv,TOperando *op){
 //    printf("CALL %02X\n",getOp(mv,op[0]));
     mv->registros[6] -= 4;
     short int puntero = mv->registros[6] & 0x0000FFFF;
+    int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
+
     if(mv->registros[6] < mv->registros[4]){
-        TError e;
-        e.code=4;
-        error(mv,e);
+        printf("ERROR: STACK OVERFLOW\n");
+        STOP(mv,op);
     }else{
 //        printf("entro a la asignacion de memoria del ip\n");
 
         aux = mv->registros[5];
 
-        mv->memoria[mv->TDD[4][0] + puntero + 3] = (aux & 0x000000FF);
-        mv->memoria[mv->TDD[4][0] + puntero + 2] = (aux & 0x0000FF00)>>8;
-        mv->memoria[mv->TDD[4][0] + puntero + 1] = (aux & 0x00FF0000)>>16;
-        mv->memoria[mv->TDD[4][0] + puntero] = (aux & 0xFF000000)>>24;
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 3] = (aux & 0x000000FF);
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 2] = (aux & 0x0000FF00)>>8;
+        mv->memoria[mv->TDD[posSeg][0] + puntero + 1] = (aux & 0x00FF0000)>>16;
+        mv->memoria[mv->TDD[posSeg][0] + puntero] = (aux & 0xFF000000)>>24;
 
         //printf("Va a entrar al JMP\n");
 
@@ -652,30 +649,39 @@ void STOP(TMV *mv, TOperando *op){
 void RET(TMV *mv,TOperando *op){
     int aux = 0;
     short int puntero = mv->registros[6] & 0x0000FFFF;
+    int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
 
-    //printf("RET\n ");
-    if(mv->TDD[4][1] < puntero){
-        TError e;
-        e.code=5;
-        error(mv,e);
+
+    //printf("PUNTERO : %08X posSeg: %d TDD : %08X\n",puntero,posSeg,mv->TDD[posSeg][1]);
+    if(mv->TDD[posSeg][1] < puntero){
+        printf("ERROR: STACK UNDERFLOW\n");
+        STOP(mv,op);
     }else{
 //        printf("Entro al ret\n");
-        aux |= mv->memoria[mv->TDD[4][0] + puntero] << 24;
-        aux |= (0x00FF0000 & (mv->memoria[mv->TDD[4][0] + puntero + 1] << 16));
-        aux |= (0x0000FF00 & (mv->memoria[mv->TDD[4][0] + puntero + 2] << 8));
-        aux |= (0x000000FF & (mv->memoria[mv->TDD[4][0] + puntero + 3]));
+        aux |= mv->memoria[mv->TDD[posSeg][0] + puntero] << 24;
+        aux |= (0x00FF0000 & (mv->memoria[mv->TDD[posSeg][0] + puntero + 1] << 16));
+        aux |= (0x0000FF00 & (mv->memoria[mv->TDD[posSeg][0] + puntero + 2] << 8));
+        aux |= (0x000000FF & (mv->memoria[mv->TDD[posSeg][0] + puntero + 3]));
 
         mv->registros[5] = 0x0000FFFF & aux;
 
         mv->registros[6] += 4;
-        mv->registros[5] += 3;
+        //mv->registros[5] += 3;
 //        printf("IP RET: %04X\n",mv->registros[5]);
     }
 
 }
 
-//SYS:
-//READ's-WRITE's:
+
+void setCC(TMV *mv,int numero){
+    if(numero==0)
+        mv->registros[8] = 0x40000000;
+    if(numero<0)
+        mv->registros[8] = 0x80000000;
+    if(numero>0)
+        mv->registros[8] = 0x00000000;
+}
+
 void readSys(TMV *mv,TSistema aux){
     int i = 0;
     int dato;
@@ -813,19 +819,19 @@ void writeStringSys(TMV *mv,TSistema aux){
 
     }else{
         while(getMem(mv,o) != 0x00 && cantCaracteres < aux.tamanio){
-            printf("%c",getMem(mv,o));
+            sprintf(st,"%s%c",st,getMem(mv,o));
             cantCaracteres++;
             o.desplazamiento++;
         }
+        sprintf(st,"%s%c",st,'\0');
     }
     printf("%s\n",st);
 
 }
-//CLRSCR:
+
 void clearScren(TMV *mv,TSistema aux){
     system("cls");
 }
-
 
 //DISCOS:
 void consultLastState(TMV *mv){
@@ -1137,11 +1143,13 @@ void breakPointSys(TMV *mv,TSistema aux){
         do{
           creaArchivoDeImagen(*mv);
           scanf(" %c\n",&quitOEnter);
-          if(quitOEnter==13) //si es igual a enter se ejecuta el ciclo del procesador con la siguiente instruccion
-            ejecutaCicloProcesador(mv,mv->header[5]);
+          if(quitOEnter==13){ //si es igual a enter se ejecuta el ciclo del procesador con la siguiente instruccion
+            ejecutaCicloProcesador(mv,mv->header[5],mv->registros[5]);
+          }
         }while(quitOEnter!=113); //si es igual a q se detiene el breakpoint
     }
 }
+
 
 //DISSASEMBLER
 
@@ -1471,3 +1479,4 @@ void imprimeRET(TInstruccionDisassembler disInstruccion){
     printf("RET ");
     printf("\n");
 }
+
