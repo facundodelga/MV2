@@ -24,16 +24,22 @@ int main(int argc,char *argv[]){
     unsigned int tamanioMemoria = 0;
     //if(argc > 1){
             int ipAux = 0;
+            int cantDiscos = 0;
             for (int i = 2; i < argc; i++) {
                 // Verificar [filename.vmi]
                 int len = strlen(argv[i]);
                 if (len >= 4 && strcmp(argv[i] + len - 4, ".vmi") == 0) {
                     strcpy(mv.imagenArchivo,argv[i]);
                 }
+                //Verificar [disc.vdd]
+                if (len >= 4 && strcmp(argv[i] + len - 4, ".vdd") == 0) {
+                    strcpy(mv.discs[cantDiscos++],argv[i]);
+                }
 
                 // Verificar [m=M]
                 if (sscanf(argv[i],"m=%d",&tamanioMemoria)) {
                     printf("m=M: %s\n", argv[i]);
+                    mv.memorySize = tamanioMemoria;
                 }else
                     tamanioMemoria = 0;
 
@@ -57,6 +63,17 @@ int main(int argc,char *argv[]){
 
                 break;
             case 2:
+                while(mv.registros[5] < mv.TDD[0][1] || mv.registros[5] < numInstrucciones){
+                    ipAux = mv.registros[5];
+                    ejecutaCicloProcesador(&mv,version,ipAux);
+                }
+
+                if(entraDissasembler){
+                    dissasembler(&mv,numInstrucciones);
+                }
+
+                break;
+            case 3:
                 while(mv.registros[5] < mv.TDD[0][1] || mv.registros[5] < numInstrucciones){
                     ipAux = mv.registros[5];
                     ejecutaCicloProcesador(&mv,version,ipAux);
@@ -114,7 +131,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
 
             mv->registros[0] = 0;
 
-            if(*version == 2){
+            if(*version >= 2){
                 unsigned int tamanioAnt = tamanio;
                 int ultSegmento = 0;
                 // Iterar sobre los segmentos
