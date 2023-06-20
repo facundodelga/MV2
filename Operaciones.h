@@ -3,7 +3,7 @@ typedef char st21[21];
 
 typedef struct {
     char header[8];
-    char memoria[16384];
+    char *memoria;
     int memorySize;
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
@@ -27,6 +27,7 @@ typedef struct {
     char formato;
 }TSistema;
 
+
 typedef struct {
     int code,invalidInstruction;
 }TError;
@@ -37,9 +38,8 @@ typedef st21 TVerror[6];
 void error(TMV *mv,TError e);
 
 //Funcion que ejecuta el ciclo del procesador
-void ejecutaCicloProcesador(TMV *mv,char version);
+void ejecutaCicloProcesador(TMV *mv,char version,int ip);
 
-//Funciones de manejo de operandos
 int getOp(TMV *,TOperando );
 void setOp(TMV *,TOperando ,int );
 int getReg(TMV *,TOperando );
@@ -66,10 +66,6 @@ void consultLastState(TMV *mv);
 void readDisc(TMV *mv);
 void writeDisc(TMV *mv);
 void obtainDiscParameters(TMV *mv);
-
-//Funciones del dinamicSegments
-void consultSegment(TMV *mv);
-void createNewSegment(TMV *mv);
 
 //Funciones del breakpoint
 void creaArchivoDeImagen(TMV mv);
