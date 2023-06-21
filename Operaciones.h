@@ -5,6 +5,7 @@ typedef struct {
     char header[8];
     char *memoria;
     int memorySize;
+    int usedMemory;
     unsigned short int TDD[8][2];
     int registros[16]; // 16 registros de 4 bytes
     char imagenArchivo[16];

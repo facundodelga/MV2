@@ -21,8 +21,8 @@ int main(int argc,char *argv[]){
     int numInstrucciones;
     TMV mv;
     int entraDissasembler = 0;
-    unsigned int tamanioMemoria = 0;
-    if(argc > 1){
+    unsigned int tamanioMemoria = 0,aux;
+    //if(argc > 1){
             int ipAux = 0;
             int cantDiscos = 0;
             for (int i = 2; i < argc; i++) {
@@ -37,19 +37,19 @@ int main(int argc,char *argv[]){
                 }
 
                 // Verificar [m=M]
-                if (sscanf(argv[i],"m=%d",&tamanioMemoria)) {
+                if (sscanf(argv[i],"m=%d",&aux)) {
                     printf("m=M: %s\n", argv[i]);
-                    mv.memorySize = tamanioMemoria;
-                }else
-                    tamanioMemoria = 0;
+                    mv.memorySize = tamanioMemoria = aux;
+                }
 
                 // Verificar [-d]
                 if (strcmp(argv[i], "-d") == 0) {
                     entraDissasembler = 1;
                 }
             }
-
+            strcpy(mv.discs[0],"disk.vdd");
             cargaMV(&mv,argv,tamanioMemoria,&numInstrucciones,&version);
+            //dissasembler(&mv,numInstrucciones);
             switch (version){
             case 1:
                 while(mv.registros[5] < mv.TDD[0][1]){
@@ -63,7 +63,7 @@ int main(int argc,char *argv[]){
 
                 break;
             case 2:
-                while(mv.registros[5] < mv.TDD[0][1] || mv.registros[5] < numInstrucciones){
+                while(mv.registros[5] < mv.TDD[0][1]){
                     ipAux = mv.registros[5];
                     ejecutaCicloProcesador(&mv,version,ipAux);
                 }
@@ -85,8 +85,9 @@ int main(int argc,char *argv[]){
 
                 break;
             }
-            //dissasembler(&mv,numInstrucciones);
-    }
+            dissasembler(&mv,numInstrucciones);
+
+    //}
     printf("\nPEDRO ARIAS - FACUNDO DELGADO\n");
     return 0;
 }
@@ -106,8 +107,8 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
     FILE *archBinario;
     int tamanioTotal = 0;
     int todoOK = 1;
-    archBinario=fopen(args[1],"rb");
-    //archBinario=fopen("sample (4).vmx","rb");
+    //archBinario=fopen(args[1],"rb");
+    archBinario=fopen("sample (3).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -142,6 +143,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                     fread(&tamanio, sizeof(unsigned short int), 1, archBinario); // Leer el tamaño del segmento
 
                     tamanio = acomodaTamanio(tamanio);
+                    printf("tamanios : %04X\n",tamanio);
                     tamanioTotal += tamanio;
 
                     if (tamanio > 0) {
@@ -157,8 +159,19 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                             //printf("6: %08X\n",mv->registros[6]);
                         }
 
-                        mv->registros[i] = (ultSegmento + 1) << 16; // Asignar el valor del registro correspondiente
-                        //printf("%d: %08X\n",i,mv->registros[i]);
+                        // Asignar el valor del registro correspondiente
+                        switch(i){
+                        case 1:
+                            mv->registros[2] = (ultSegmento + 1) << 16;
+                            break;
+                        case 2:
+                            mv->registros[1] = (ultSegmento + 1) << 16;
+                            break;
+                        default:
+                            mv->registros[i] = (ultSegmento + 1) << 16;
+                        }
+
+
                         mv->registros[i] &= 0xFFFF0000;
                         ultSegmento++;
                         tamanioAnt = tamanio;
@@ -168,7 +181,11 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                     }
                     //printf("%d: %08X\n",i,mv->registros[i]);
                 }
+                tamanioTotal += tamanio;
+                mv->usedMemory = tamanioTotal;
                 mv->lastValidSegment = ultSegmento;
+
+                printf("used memory: %04X\n",mv->usedMemory);
 
                 if(tamanioParam > 0 && tamanioTotal > tamanioParam){
                     printf("ERROR! LA MEMORIA PROPORCIONADA POR PARAMETRO ES INSUFICIENTE PARA EJECUTAR... BYE BYE\n");
@@ -176,8 +193,10 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                 }else{
                     if(tamanioParam > 0)
                         mv->memoria = (char * ) malloc(tamanioParam * sizeof(char));
-                    else
+                    else{
                         mv->memoria = (char * ) malloc(16384 * sizeof(char));
+                        mv->memorySize = 16384;
+                    }
                 }
 
             }else{
@@ -195,15 +214,13 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                 if(contador < mv->TDD[0][1]){
                     (*numInstrucciones)++;
                 }else{
-                    mv->TDD[2][1] += 1;
+                    mv->TDD[1][1] += 1;
                 }
                 contador++;
             }
 
             fclose(archBinario);
-
-            if(todoOK)
-                mv->registros[5]=0; //IP == 0
+            mv->registros[5]=0; //IP == 0
         }else{
             printf("ERROR! DEBE PROPORCIONAR DE UN NOMBRE DE ARCHIVO CON EXTENCION .VMX... BYE BYE\n");
             exit(0xFF);
