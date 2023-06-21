@@ -30,13 +30,15 @@ void ejecutaCicloProcesador(TMV *mv,char version,int ip){
     TOperaciones vecFunciones[256];
 
     cargaVectorDeFunciones(vecFunciones);
+
     leePrimerByte(mv->memoria[mv->registros[5]],&(operandos[0].tipo),&(operandos[1].tipo),&operacion);
-    //printf("IP: %04X, operacion: %02X, operando 1: %6X, operando 2: %d\n",mv->registros[5],operacion,getOp(mv,operandos[0]),getOp(mv,operandos[1]));
 
     sumaIP(&(mv->registros[5]),operandos[0].tipo,operandos[1].tipo);
 
     recuperaOperandos(mv,operandos,ip);
 
+    //printf("IP: %04X, operacion: %02X, operando 1: %6X, operando 2: %d\n",ip,operacion,getOp(mv,operandos[0]),getOp(mv,operandos[1]));
+    //printf("IP: %04X\n",ip);
     switch (version){
     case 1: condicion=(operacion >= 0 && operacion < 12) || (operacion >= 0x30 && operacion < 0x3C) || (operacion == 0xF0);
         break;
@@ -128,7 +130,7 @@ int getMem(TMV *mv,TOperando o){
     unsigned int num = 0;
     int posSeg = (mv->registros[o.registro] >> 16) & 0x0000000F;
     int puntero = (mv->registros[o.registro]) & 0x0000FFFF;
-//    printf("IP: %04X\n",mv->registros[5]);
+    //printf("IP: %04X\n",mv->registros[5]);
     //printf("get: %d TDDS : %d,tamanio segmento: %d , puntero : %04X   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,mv->TDD[posSeg][1],puntero,o.desplazamiento);
     if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0] && o.desplazamiento + puntero <= mv->TDD[posSeg][1]){
         //printf("DATO MEMORIA %d\n",(0x000000FF & (mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 3])));
@@ -148,6 +150,7 @@ int getMem(TMV *mv,TOperando o){
         }
     }else{
         printf("ERROR DE FALLO DE SEGMENTO!... BYE BYE\n");
+        exit(0xFF);
         mv->registros[5] = mv->TDD[0][1];
     }
     return num;
@@ -229,26 +232,26 @@ void setOp(TMV *mv,TOperando o,int num){
 
     switch(o.tipo){
         case 0x00: //tipo memoria
-        //printf("set: %02X TDDS : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
-        if(mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0]){
+        //printf("TDDS [pos][0] : %04X pos : %d , puntero : %d   desplazamiento: %d\n",mv->TDD[posSeg][0],posSeg,puntero,o.desplazamiento);
+        if(mv->TDD[posSeg][0] + o.desplazamiento + puntero < mv->usedMemory && mv->TDD[posSeg][0] + o.desplazamiento + puntero >= mv->TDD[posSeg][0]){
 
                 if(o.segmentoReg == 0x00){ //segmento de 4 bytes
                     mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char)((num >> 24) & 0x000000FF);
                     mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1] = (char)((num >> 16) & 0x000000FF);
                     mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 2] = (char)((num >> 8) & 0x000000FF);
                     mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 3] = (char)(num & 0x000000FF);
-                    if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 3)
+                    if(o.registro != 7 && mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 3)
                         mv->TDD[posSeg][1] += puntero + o.desplazamiento + 4;
                 }else{
                     if(o.segmentoReg == 0x02){ //segmento 2 bytes
                         mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) (num >> 8) & 0x000000FF;
                         mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento + 1] = (char) num & 0x000000FF;
-                        if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 1)
+                        if(o.registro != 7 && mv->TDD[posSeg][1] <= puntero + o.desplazamiento + 1)
                             mv->TDD[posSeg][1] += puntero + o.desplazamiento + 2;
 
                     }else{ //segmento de 1 byte
                         mv->memoria[mv->TDD[posSeg][0] + puntero + o.desplazamiento] = (char) num;
-                        if(mv->TDD[posSeg][1] <= puntero + o.desplazamiento)
+                        if(o.registro != 7 && mv->TDD[posSeg][1] <= puntero + o.desplazamiento)
                             mv->TDD[posSeg][1] += 1;
                     }
                 }
@@ -782,7 +785,7 @@ void readStringSys(TMV *mv,TSistema aux){
     if(aux.tamanio > 0){
         st = (char *)malloc(aux.tamanio * sizeof(char));
     }else if(aux.tamanio == -1){
-        st = (char *)malloc(16384 * sizeof(char));
+        st = (char *)malloc(512 * sizeof(char));
     }
     o.tipo = 0;
     o.registro = 13;
@@ -800,7 +803,7 @@ void readStringSys(TMV *mv,TSistema aux){
 }
 void writeStringSys(TMV *mv,TSistema aux){
 
-    char *st = (char * )malloc(16384 * sizeof(char));
+    char *st = (char * )malloc(512 * sizeof(char));
     int cantCaracteres = 0;
     TOperando o;
 
@@ -1076,23 +1079,22 @@ void consultSegment(TMV *mv){
     }
 }
 void createNewSegment(TMV *mv){
-    unsigned short int condicion,i,pos;
-    unsigned int espacio=mv->memorySize;
-    if(mv->registros[4]!=-1){
-        pos=0;
-        for(i=1;i<=4;i++)
-            if(mv->registros[i]!=-1)
-                pos++;
-        espacio-=mv->TDD[pos][1]-mv->TDD[pos][0];
-    }
-    espacio-=mv->TDD[mv->lastValidSegment][1];
-    if(mv->lastValidSegment<7 && espacio<=(mv->registros[12]&0x0000FFFF)){
-        //Se crea el segmento o no dependiendo de las condiciones;
-        mv->lastValidSegment++;
-        mv->TDD[mv->lastValidSegment][0]=mv->TDD[mv->lastValidSegment-1][1];
-        mv->TDD[mv->lastValidSegment][1]=mv->TDD[mv->lastValidSegment][0]+(mv->registros[12]&0x0000FFFF);
-    }
-    else{
+    unsigned short int condicion,i,tamanio = mv->registros[12]&0x0000FFFF;
+    printf("crea segmento total final %d - total memoria %d\n",mv->usedMemory + (mv->registros[12]&0x0000FFFF), mv->memorySize);
+    if(mv->lastValidSegment < 7 && mv->usedMemory + (tamanio) < mv->memorySize){
+        //Se crea el segmento
+        (mv->lastValidSegment)++;
+
+        mv->TDD[mv->lastValidSegment][0] = mv->usedMemory;
+        mv->TDD[mv->lastValidSegment][1] = 0;
+
+        mv->usedMemory += tamanio;
+
+        mv->registros[11] = (mv->lastValidSegment) << 16;
+        mv->registros[10] = 0;
+        //printf("\nEBX : %08X\n",mv->registros[11]);
+    }else{
+        printf("no crea segmento\n");
         mv->registros[11]=-1;
         if(mv->lastValidSegment==7)
             mv->registros[10]&=0xFFFFFFFF;
@@ -1107,7 +1109,9 @@ void dinamicSegments(TMV *mv,TSistema aux){
         break;
     case 1: createNewSegment(mv);
         break;
-    default: mv->registros[10]=0x00000001;
+    default:
+        mv->registros[10] = 1;
+        break;
     }
 }
 
