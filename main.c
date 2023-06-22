@@ -106,9 +106,9 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
     char *header = (char * )malloc(6 * sizeof(char));
     FILE *archBinario;
     int tamanioTotal = 0;
-    int todoOK = 1;
+
     //archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (3).vmx","rb");
+    archBinario=fopen("sample (2).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -131,7 +131,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
             mv->TDD[0][1] = tamanio;
 
             mv->registros[0] = 0;
-
+            mv->tamaniosSegmentos[0] = tamanio;
             if(*version >= 2){
                 unsigned int tamanioAnt = tamanio;
                 int ultSegmento = 0;
@@ -144,6 +144,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
 
                     tamanio = acomodaTamanio(tamanio);
                     printf("tamanios : %04X\n",tamanio);
+
                     tamanioTotal += tamanio;
 
                     if (tamanio > 0) {
@@ -171,13 +172,16 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
                             mv->registros[i] = (ultSegmento + 1) << 16;
                         }
 
+                        mv->tamaniosSegmentos[ultSegmento + 1] = tamanio;
 
                         mv->registros[i] &= 0xFFFF0000;
+
                         ultSegmento++;
+
                         tamanioAnt = tamanio;
 
                     } else {
-                        mv->registros[i + 1] = -1;
+                        mv->registros[i] = -1;
                     }
                     //printf("%d: %08X\n",i,mv->registros[i]);
                 }
