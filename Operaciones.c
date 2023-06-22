@@ -1066,21 +1066,24 @@ void discAccess(TMV *mv,TSistema aux){
 
 //SEGMENTOS:
 void consultSegment(TMV *mv){
-    unsigned short int i=0;
-    while(i<8 && mv->registros[11]!=mv->TDD[i][0])
-        i++;
-    if(i<8 && mv->TDD[i][0]==mv->registros[11]){
-        int tamanio=0xFFFF0000 | mv->TDD[i][1];
-        mv->registros[13]&=tamanio;
-        mv->registros[10]&=0xFFFF0000;
+    unsigned short int i = mv->registros[11] >> 16;
+
+    mv->registros[10] &= 0xFFFF0000; // ==> AX = 0;
+    mv->registros[12] &= 0xFFFF0000;
+
+    if(mv->registros[11] >= 0 && i <= mv->lastValidSegment){
+        mv->registros[12] |= mv->tamaniosSegmentos[i];
+        mv->registros[11] = i;
+        mv->registros[11] = mv->registros[11] << 16;
+
     }else{
-        mv->registros[13]&=0xFFFF0000;
-        mv->registros[10]&=0xFFFF0031;
+        mv->registros[10] |= 0xFFFF0031;
     }
 }
+
 void createNewSegment(TMV *mv){
     unsigned short int condicion,i,tamanio = mv->registros[12]&0x0000FFFF;
-    printf("crea segmento total final %d - total memoria %d\n",mv->usedMemory + (mv->registros[12]&0x0000FFFF), mv->memorySize);
+    //printf("crea segmento total final %d - total memoria %d\n",mv->usedMemory + (mv->registros[12]&0x0000FFFF), mv->memorySize);
     if(mv->lastValidSegment < 7 && mv->usedMemory + (tamanio) < mv->memorySize){
         //Se crea el segmento
         (mv->lastValidSegment)++;
@@ -1094,7 +1097,7 @@ void createNewSegment(TMV *mv){
         mv->registros[10] = 0;
         //printf("\nEBX : %08X\n",mv->registros[11]);
     }else{
-        printf("no crea segmento\n");
+
         mv->registros[11]=-1;
         if(mv->lastValidSegment==7)
             mv->registros[10]&=0xFFFFFFFF;
