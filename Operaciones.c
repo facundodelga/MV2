@@ -511,79 +511,50 @@ void JZ(TMV *mv, TOperando *op){
        mv->registros[5] = aux;
        //printf("Jz  %02X\n",mv->registros[5]);
     //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
+
 }
 
 void JP(TMV *mv, TOperando *op){
     if((mv->registros[8] & 0xF0000000) == 0x00000000)
         mv->registros[5] = getOp(mv,op[0]);
-        //printf("JP  %02X\n",mv->registros[5]);
-
-    //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JN(TMV *mv, TOperando *op){
     if((mv->registros[8] & 0xF0000000) == 0x80000000)
         mv->registros[5] = getOp(mv,op[0]);
-       //printf("Jn  %02X\n",mv->registros[5]);
-
-    //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNZ(TMV *mv, TOperando *op){
     if((mv->registros[8] & 0xF0000000) != 0x40000000)
         mv->registros[5] = getOp(mv,op[0]);
-        //printf("JNZ  %02X\n",mv->registros[5]);
-
-    //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNP(TMV *mv, TOperando *op){
     if((mv->registros[8] & 0xF0000000)  != 0x00000000)
         mv->registros[5] = getOp(mv,op[0]);
-        //printf("JNP  %02X\n",mv->registros[5]);
-
-    //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void JNN(TMV *mv, TOperando *op){
 
     if((mv->registros[8] & 0xF0000000) != 0x80000000)
         mv->registros[5] = getOp(mv,op[0]);
-        //printf("JNN  %02X\n",mv->registros[5]);
-
-    //}else
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void LDL(TMV *mv, TOperando *op){
     mv->registros[9] &= 0xFFFF0000;
-    //printf("LDL %02X\n",getOp(mv,op[0]));
     mv->registros[9] |= (getOp(mv,op[0]) & 0x0000FFFF);
-    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void LDH(TMV *mv, TOperando *op){
     mv->registros[9] &= 0x0000FFFF;
-    //printf("LDH %02X\n",getOp(mv,op[0]));
     mv->registros[9] |= ((getOp(mv,op[0])<<16) & 0xFFFF0000);
-    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void RND(TMV *mv, TOperando *op){
-    //printf("RND %02X\n",getOp(mv,op[0]));
     mv->registros[9]= rand() % (getOp(mv,op[0]) - 1);
-    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 void NOT(TMV *mv, TOperando *op){
     int aux;
-    //printf("NOT %02X\n",getOp(mv,op[0]));
     aux=getOp(mv,op[0]);
     setOp(mv,op[0],aux);
     setCC(mv,aux);
-    //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
 
 void PUSH(TMV *mv,TOperando *op){
     int aux;
-    //printf("PUSH\n");
     mv->registros[6]-=4;
     short int puntero = mv->registros[6] & 0x0000FFFF;
     int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
@@ -593,15 +564,11 @@ void PUSH(TMV *mv,TOperando *op){
         STOP(mv,op);
     }else{
         aux=getOp(mv,op[0]);
-
-//        printf("VALOR PUSH [%08X]\n",aux);
-
         mv->memoria[mv->TDD[posSeg][0] + puntero + 3] = (aux & 0x000000FF);
         mv->memoria[mv->TDD[posSeg][0] + puntero + 2] = (aux >> 8) & 0x000000FF;
         mv->memoria[mv->TDD[posSeg][0] + puntero + 1] = (aux >> 16) & 0x000000FF;
         mv->memoria[mv->TDD[posSeg][0] + puntero] = (aux >> 24) & 0x000000FF;
 
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     }
 
 }
@@ -609,9 +576,6 @@ void POP(TMV *mv,TOperando *op){
     int aux = 0;
     int puntero = mv->registros[6] & 0x0000FFFF;
     int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
-    //printf("POP\n");
-
-    //printf("PUNTERO : %08X posSeg: %d TDD : %08X\n",puntero,posSeg,mv->TDD[posSeg][1]);
     if(mv->TDD[posSeg][1] < puntero){
         printf("ERROR: STACK UNDERFLOW\n");
         STOP(mv,op);
@@ -622,16 +586,12 @@ void POP(TMV *mv,TOperando *op){
         aux |= (0x0000FF00 & (mv->memoria[mv->TDD[posSeg][0] + puntero + 2] << 8));
         aux |= (0x000000FF & (mv->memoria[mv->TDD[posSeg][0] + puntero + 3]));
         setOp(mv,op[0],aux);
-//        printf("Valor del POP: %04X\n",aux);
-//        printf("valor de memoria: %02X %02X %02X %02X\n",mv->memoria[mv->TDD[4][1]+ puntero + 3],mv->memoria[mv->TDD[4][1]+ puntero + 2],mv->memoria[mv->TDD[4][1]+ puntero + 1],mv->memoria[mv->TDD[4][1]+puntero]);
         mv->registros[6]+=4;
-        //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
     }
 
 }
 void CALL(TMV *mv,TOperando *op){
     int aux;
-//    printf("CALL %02X\n",getOp(mv,op[0]));
     mv->registros[6] -= 4;
     short int puntero = mv->registros[6] & 0x0000FFFF;
     int posSeg = (mv->registros[6] >> 16) & 0x0000000F;
@@ -640,7 +600,6 @@ void CALL(TMV *mv,TOperando *op){
         printf("ERROR: STACK OVERFLOW\n");
         STOP(mv,op);
     }else{
-//        printf("entro a la asignacion de memoria del ip\n");
 
         aux = mv->registros[5];
 
@@ -648,8 +607,6 @@ void CALL(TMV *mv,TOperando *op){
         mv->memoria[mv->TDD[posSeg][0] + puntero + 2] = (aux & 0x0000FF00)>>8;
         mv->memoria[mv->TDD[posSeg][0] + puntero + 1] = (aux & 0x00FF0000)>>16;
         mv->memoria[mv->TDD[posSeg][0] + puntero] = (aux & 0xFF000000)>>24;
-
-        //printf("Va a entrar al JMP\n");
 
         mv->registros[5] = getOp(mv,op[0]);
     }
@@ -864,7 +821,7 @@ void readDisc(TMV *mv){
             fread(&maxHead,sizeof(char),1,disc);
             fread(&maxSector,sizeof(char),1,disc);
             if(Cylinder<maxCylinder && Head<maxHead && Sector<maxSector){
-                //Se lee de a un bloque
+
                 cantRead=flagDiscCompleate=0;
                 pos=512*(1+maxSector*(Cylinder*maxHead*+Head)+Sector);
                 fseek(disc,pos,SEEK_SET);
@@ -873,7 +830,7 @@ void readDisc(TMV *mv){
                     i=0;
                     //Se lee de a un sector
                     while(i<512 && !ferror(disc)){
-                        fwrite(&mv->memoria[posMemory],sizeof(char),1,disc);
+                        fread(&mv->memoria[posMemory],sizeof(char),1,disc);
                         if(!ferror(disc)){
                             posMemory++;
                             i++;

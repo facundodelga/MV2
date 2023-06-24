@@ -54,7 +54,7 @@ int main(int argc,char *argv[]){
                 creaDisco(*mv);
             }
             */
-            strcpy(mv.discs[0],"disk.vdd");
+            strcpy(mv.discs[0],"disk (1).vdd");
             cargaMV(&mv,argv,tamanioMemoria,&numInstrucciones,&version);
             dissasembler(&mv,numInstrucciones);
             switch (version){
@@ -115,7 +115,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
     int tamanioTotal = 0;
 
     //archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample.vmx","rb");
+    archBinario=fopen("sample (1).vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
