@@ -682,6 +682,10 @@ void readSys(TMV *mv,TSistema aux){
         i++;
         auxOp.desplazamiento = i * aux.tamanio;
     }
+//    printf("[000A]: %04X\n",mv->memoria[mv->TDD[2][0] + 10]);
+//    printf("[000A]: %04X\n",mv->memoria[mv->TDD[2][0] + 11]);
+//    printf("[000A]: %04X\n",mv->memoria[mv->TDD[2][0] + 12]);
+//    printf("[000A]: %04X\n",mv->memoria[mv->TDD[2][0] + 13]);
 }
 void writeSys(TMV *mv,TSistema aux){
     int i = 0;
@@ -815,22 +819,29 @@ void readDisc(TMV *mv){
 
     if(disc=fopen(mv->discs[DL],"rb")){
         pos=(mv->registros[11]>>16)&0x0000FFFF;
-        if(pos<8 && pos<=mv->lastValidSegment && mv->TDD[pos][1]-(mv->registros[11]&0x0000FFFF)>=512*(mv->registros[10]&0x000000FF)){
+        if(pos<=mv->lastValidSegment && mv->tamaniosSegmentos[pos] >= 512*(mv->registros[10]&0x000000FF)){
             fseek(disc,33,SEEK_SET);
+
             fread(&maxCylinder,sizeof(char),1,disc);
             fread(&maxHead,sizeof(char),1,disc);
             fread(&maxSector,sizeof(char),1,disc);
+
             if(Cylinder<maxCylinder && Head<maxHead && Sector<maxSector){
 
                 cantRead=flagDiscCompleate=0;
-                pos=512*(1+maxSector*(Cylinder*maxHead*+Head)+Sector);
+                pos=512*(1+maxSector *(Cylinder*maxHead*+Head)+Sector);
                 fseek(disc,pos,SEEK_SET);
-                posMemory=(mv->TDD[(mv->registros[11]>>16)&0x0000FFFF][0]+(mv->registros[11]&0x0000FFFF));
+                posMemory = (mv->TDD[(mv->registros[11]>>16)&0x0000FFFF][0]+(mv->registros[11]&0x0000FFFF));
+
                 while(!feof(disc) && !ferror(disc) && !flagDiscCompleate && cantRead<cantToRead){
                     i=0;
                     //Se lee de a un sector
                     while(i<512 && !ferror(disc)){
                         fread(&mv->memoria[posMemory],sizeof(char),1,disc);
+
+                        if(mv->TDD[ mv->registros[11]>>16 ][1] <= posMemory & 0x0000FFFF)
+                            mv->TDD[ mv->registros[11]>>16 ][1]++;
+
                         if(!ferror(disc)){
                             posMemory++;
                             i++;
@@ -994,17 +1005,17 @@ void obtainDiscParameters(TMV *mv){
     int DL=mv->registros[14] & 0x000000FF; //discNumber
     FILE *disc;
 
-    if(disc=fopen(mv->discs[DL],"rb")){
-        fseek(disc,78,SEEK_SET);
+    if(disc = fopen(mv->discs[DL],"rb")){
+        fseek(disc,33,SEEK_SET);
         fread(&maxCylinder,sizeof(maxCylinder),1,disc);
         fread(&maxHead,sizeof(maxHead),1,disc);
         fread(&maxSector,sizeof(maxSector),1,disc);
 
-        mv->registros[12]&=0xFFFF0000;
-        mv->registros[12]|=((maxCylinder<<8)&0x0000FF00);
-        mv->registros[12]|=(maxHead & 0x000000FF);
-        mv->registros[13]&=0xFFFF00FF;
-        mv->registros[13]|=((maxSector<<8)&0x0000FF00);
+        mv->registros[12] &= 0xFFFF0000;
+        mv->registros[12] |= ((maxCylinder<<8)&0x0000FF00);
+        mv->registros[12] |= (maxHead & 0x000000FF);
+        mv->registros[13] &= 0xFFFF00FF;
+        mv->registros[13] |= ((maxSector<<8)&0x0000FF00);
     }else
         mv->registros[10] & 0xFFFF31FF;
     fclose(disc);
@@ -1045,6 +1056,7 @@ void consultSegment(TMV *mv){
 
 void createNewSegment(TMV *mv){
     unsigned short int condicion,i,tamanio = mv->registros[12]&0x0000FFFF;
+
     //printf("crea segmento total final %d - total memoria %d\n",mv->usedMemory + (mv->registros[12]&0x0000FFFF), mv->memorySize);
     if(mv->lastValidSegment < 7 && mv->usedMemory + (tamanio) < mv->memorySize){
         //Se crea el segmento
@@ -1275,7 +1287,7 @@ void imprimeOperando(TOperando op){
               }
         break;
     case 0x01://inmediato
-              printf(" %02X",op.desplazamiento);
+              printf(" %04X",op.desplazamiento);
         break;
     case 0x02://registro
               obtieneTAG(op.registro,op.segmentoReg,nombre);
