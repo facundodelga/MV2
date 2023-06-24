@@ -12,6 +12,14 @@ void error(TMV *mv,TError e){
         printf("Instruccion: %02X",e.invalidInstruction);
     mv->registros[5] = mv->TDD[0][1];
 }
+void setCC(TMV *mv,int numero){
+    if(numero==0)
+        mv->registros[8] = 0x40000000;
+    if(numero<0)
+        mv->registros[8] = 0x80000000;
+    if(numero>0)
+        mv->registros[8] = 0x00000000;
+}
 
 void loadSYSOperationArray(t_funcionSys *vecLlamadas){
     vecLlamadas[0x1] = readSys;
@@ -22,6 +30,34 @@ void loadSYSOperationArray(t_funcionSys *vecLlamadas){
     vecLlamadas[0xD] = discAccess;
     vecLlamadas[0xE] = dinamicSegments;
     vecLlamadas[0xF] = breakPointSys;
+}
+void sumaIP(int *ip,char operando1,char operando2){
+    int op1,op2;
+    if(operando1 == 0x0){
+        op1 = 3;
+    }else{
+        if(operando1 == 0x1){
+            op1 = 2;
+        }else{
+            if(operando1 == 0x2)
+                op1 = 1;
+            else
+                op1 = 0;
+        }
+    }
+    if(operando2 == 0x0){ // memoria
+        op2 = 3;
+    }else{
+        if(operando2 == 0x1){ // inmediato
+            op2 = 2;
+        }else{
+            if(operando2 == 0x2) // registro
+                op2= 1;
+            else
+                op2 = 0;
+        }
+    }
+    *ip += 1 + op1 + op2;
 }
 
 void ejecutaCicloProcesador(TMV *mv,char version,int ip){
@@ -328,34 +364,6 @@ void cargaVectorDeFunciones(TOperaciones *v){
 }
 
 
-void sumaIP(int *ip,char operando1,char operando2){
-    int op1,op2;
-    if(operando1 == 0x0){
-        op1 = 3;
-    }else{
-        if(operando1 == 0x1){
-            op1 = 2;
-        }else{
-            if(operando1 == 0x2)
-                op1 = 1;
-            else
-                op1 = 0;
-        }
-    }
-    if(operando2 == 0x0){ // memoria
-        op2 = 3;
-    }else{
-        if(operando2 == 0x1){ // inmediato
-            op2 = 2;
-        }else{
-            if(operando2 == 0x2) // registro
-                op2= 1;
-            else
-                op2 = 0;
-        }
-    }
-    *ip += 1 + op1 + op2;
-}
 
 void MOV(TMV *mv,TOperando *op){
 //    printf("operando 1 %d = ",getOp(mv,op[0]));
@@ -505,6 +513,7 @@ void JZ(TMV *mv, TOperando *op){
     //}else
         //sumaIP(&(mv->registros[5]),op[0].tipo,op[1].tipo);
 }
+
 void JP(TMV *mv, TOperando *op){
     if((mv->registros[8] & 0xF0000000) == 0x00000000)
         mv->registros[5] = getOp(mv,op[0]);
@@ -676,14 +685,6 @@ void RET(TMV *mv,TOperando *op){
 }
 
 
-void setCC(TMV *mv,int numero){
-    if(numero==0)
-        mv->registros[8] = 0x40000000;
-    if(numero<0)
-        mv->registros[8] = 0x80000000;
-    if(numero>0)
-        mv->registros[8] = 0x00000000;
-}
 
 void readSys(TMV *mv,TSistema aux){
     int i = 0;
@@ -855,12 +856,10 @@ void readDisc(TMV *mv){
     unsigned short int pos,posMemory,cantToRead=mv->registros[10]&0x000000FF,cantRead,i,flagDiscCompleate;
     FILE *disc;
 
-    if(disc=fopen(mv->discs[DL],"rab")){
-        pos=1;
-        while(pos<8 && pos<mv->lastValidSegment && mv->TDD[pos][1]>mv->registros[11])
-            pos++;
-        if(pos<8 && pos<=mv->lastValidSegment && (mv->TDD[pos][1]-mv->registros[11]>512*(mv->registros[10]&0x000000FF))){
-            fseek(disc,78,SEEK_SET);
+    if(disc=fopen(mv->discs[DL],"rb")){
+        pos=(mv->registros[11]>>16)&0x0000FFFF;
+        if(pos<8 && pos<=mv->lastValidSegment && mv->TDD[pos][1]-(mv->registros[11]&0x0000FFFF)>=512*(mv->registros[10]&0x000000FF)){
+            fseek(disc,33,SEEK_SET);
             fread(&maxCylinder,sizeof(char),1,disc);
             fread(&maxHead,sizeof(char),1,disc);
             fread(&maxSector,sizeof(char),1,disc);
@@ -869,14 +868,16 @@ void readDisc(TMV *mv){
                 cantRead=flagDiscCompleate=0;
                 pos=512*(1+maxSector*(Cylinder*maxHead*+Head)+Sector);
                 fseek(disc,pos,SEEK_SET);
-                posMemory=mv->registros[11];
+                posMemory=(mv->TDD[(mv->registros[11]>>16)&0x0000FFFF][0]+(mv->registros[11]&0x0000FFFF));
                 while(!feof(disc) && !ferror(disc) && !flagDiscCompleate && cantRead<cantToRead){
                     i=0;
                     //Se lee de a un sector
                     while(i<512 && !ferror(disc)){
-                        fread(mv->memoria[posMemory],sizeof(char),1,disc);
-                        posMemory++;
-                        i++;
+                        fwrite(&mv->memoria[posMemory],sizeof(char),1,disc);
+                        if(!ferror(disc)){
+                            posMemory++;
+                            i++;
+                        }
                     }
                     if(!ferror(disc)){
                         cantRead++;
@@ -950,33 +951,33 @@ void writeDisc(TMV *mv){
     char Cylinder=(mv->registros[13]>>8) & 0x000000FF,maxCylinder;
     char Head=mv->registros[13] & 0x000000FF,maxHead;
     char Sector=(mv->registros[14]>>8) & 0x000000FF,maxSector;
-    int DL=mv->registros[14] & 0x000000FF;
-    unsigned short int pos,posMemory,cantToWrite=mv->registros[10]&0x000000FF,cantWrite,i,flagDiscCompleate;
+    char flagDiscCompleate;
+    int posMemory,pos,cantToWrite=mv->registros[10]&0x000000FF,cantWrite,i,DL=mv->registros[14] & 0x000000FF;;
     FILE *disc;
 
-    if(disc=fopen(mv->discs[DL],"wb")){
-        pos=1;
-        while(pos<8 && pos<mv->lastValidSegment && mv->TDD[pos][1]>mv->registros[11])
-            pos++;
-        if(pos<8 && pos<=mv->lastValidSegment && (mv->TDD[pos][1]-mv->registros[11]>512)){
-           fseek(disc,78,SEEK_SET);
+    if(disc=fopen(mv->discs[DL],"rb+")){
+        pos=(mv->registros[11]>>16)&0x0000FFFF;
+        if(pos<8 && pos<=mv->lastValidSegment && mv->TDD[pos][1]-(mv->registros[11]&0x0000FFFF)>=512*(mv->registros[10]&0x000000FF)){
+            fseek(disc,33,SEEK_SET);
             fread(&maxCylinder,sizeof(char),1,disc);
             fread(&maxHead,sizeof(char),1,disc);
             fread(&maxSector,sizeof(char),1,disc);
-            if(Cylinder<maxCylinder && Head<maxHead && Sector<maxSector){
-                //Se lee de a un bloque
+            if(Cylinder<=maxCylinder && Head<=maxHead && Sector<=maxSector){
                 cantWrite=flagDiscCompleate=0;
                 pos=512*(1+maxSector*(Cylinder*maxHead*+Head)+Sector);
                 fseek(disc,pos,SEEK_SET);
-                posMemory=mv->registros[11];
+                posMemory=(mv->TDD[(mv->registros[11]>>16)&0x0000FFFF][0]+(mv->registros[11]&0x0000FFFF));
                 while(!feof(disc) && !ferror(disc) && !flagDiscCompleate && cantWrite<cantToWrite){
                     i=0;
-                    //Se lee de a un sector
+                    //Se escribe de a un sector
                     while(i<512 && !ferror(disc)){
-                        fwrite(mv->memoria[posMemory],sizeof(char),1,disc);
-                        posMemory++;
-                        i++;
+                        fwrite(&mv->memoria[posMemory],sizeof(char),1,disc);
+                        if(!ferror(disc)){
+                            posMemory++;
+                            i++;
+                        }
                     }
+                    //Si no hubo errores en la escritura del sector
                     if(!ferror(disc)){
                         cantWrite++;
                         if(Sector<maxSector)
@@ -985,7 +986,7 @@ void writeDisc(TMV *mv){
                             Sector=0;
                             Head++;
                         }
-                        if(Head==maxHead){
+                        if(Head<maxHead){
                             Head=0;
                             Cylinder++;
                         }
@@ -998,19 +999,23 @@ void writeDisc(TMV *mv){
                     }
                 }
                 mv->registros[10]&=(0xFFFFFF00|cantWrite);
+                //Si se acabo el archivo o si se completo el disco
                 if(feof(disc)|| flagDiscCompleate){
                     mv->registros[10] &= 0xFFFF00FF;
                     mv->registros[10] |= 0x0000CC00;
                 }
                 else
+                    //Si hubo un error de la operacion escritura
                     if(ferror(disc)){
                         mv->registros[10] &= 0xFFFF00FF;
                         mv->registros[10] |= 0x0000FF00;
                     }else
+                        //Si todo salio bien
                         if(cantWrite==cantToWrite)
                             mv->registros[10]&=0xFFFF00FF;
             }
             else
+                //Se asigna el error correspondiente por pasarse del limite del disco
                 if(Cylinder>maxCylinder)
                     mv->registros[10] & 0xFFFF0BFF;
                 else
@@ -1099,12 +1104,14 @@ void createNewSegment(TMV *mv){
     }else{
 
         mv->registros[11]=-1;
+        mv->registros[10]&=0xFFFF0000;
         if(mv->lastValidSegment==7)
-            mv->registros[10]&=0xFFFFFFFF;
+            mv->registros[10]|=0x0000FFFF;
         else
-            mv->registros[10]&=0xFFFF00CC;
+            mv->registros[10]|=0x000000CC;
     }
 }
+
 void dinamicSegments(TMV *mv,TSistema aux){
     int op=mv->registros[10] & 0x0000FFFF;
     switch (op){
@@ -1113,7 +1120,8 @@ void dinamicSegments(TMV *mv,TSistema aux){
     case 1: createNewSegment(mv);
         break;
     default:
-        mv->registros[10] = 1;
+        mv->registros[10]&=0xFFFF0000;
+        mv->registros[10]|=0x0000FFFF;
         break;
     }
 }

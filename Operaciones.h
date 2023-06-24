@@ -12,7 +12,7 @@ typedef struct {
     char imagenArchivo[16];
     st255 discs[255];
     char lastStateAH;
-    char lastValidSegment;
+    int lastValidSegment;
 }TMV;
 
 typedef struct{

@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "Operaciones.h"
 #include <string.h>
 
 void cargaVectorDeFunciones(TOperaciones *);
 unsigned short int acomodaTamanio(unsigned short int tamanio);
+void creaDisco(TMV *mv);
 void cargaMV(TMV *, char * [],unsigned int ,int *,char *);
 void dissasembler(TMV *, int );
 
@@ -47,9 +49,14 @@ int main(int argc,char *argv[]){
                     entraDissasembler = 1;
                 }
             }
+            /*
+            if(cantDiscos==0){
+                creaDisco(*mv);
+            }
+            */
             strcpy(mv.discs[0],"disk.vdd");
             cargaMV(&mv,argv,tamanioMemoria,&numInstrucciones,&version);
-            //dissasembler(&mv,numInstrucciones);
+            dissasembler(&mv,numInstrucciones);
             switch (version){
             case 1:
                 while(mv.registros[5] < mv.TDD[0][1]){
@@ -108,7 +115,7 @@ void cargaMV(TMV *mv, char *args[],unsigned int tamanioParam,int *numInstruccion
     int tamanioTotal = 0;
 
     //archBinario=fopen(args[1],"rb");
-    archBinario=fopen("sample (2).vmx","rb");
+    archBinario=fopen("sample.vmx","rb");
     if(archBinario){
         fgets(header,6 * sizeof(char),archBinario); //Obtengo el header
         if(strcmp(header,"VMX23") == 0){
@@ -287,6 +294,45 @@ void dissasembler(TMV * mv,int numInstrucciones){
     }
 
 }
+/*
+void creaDisco(TMV *mv){
+    FILE* archivo = fopen(, "r+b");
+    if (archivo == NULL) {
+        // El archivo no existe, se crea uno nuevo con valores por defecto
+        archivo = fopen(nombreArchivo, "w+b");
+        if (archivo == NULL) {
+            printf("No se pudo crear el archivo %s.\n", nombreArchivo);
+            return;
+        }
 
+        Header header;
+        memset(&header, 0, sizeof(Header));
+        memcpy(header.identificador, "VDD0", 4);
+        header.version = 1;
 
+        header.tipo = 1;
+        header.cantidad_cilindros = 128;
+        header.cantidad_cabezas = 128;
+        header.cantidad_sectores = 128;
+        header.tamano_sector = 512;
 
+        fwrite(&header, sizeof(Header), 1, archivo);
+    }
+
+    // Calcular la posición de escritura según el cilindro, cabeza y sector
+    long posicion = sizeof(Header) + (cilindro * header.cantidad_cabezas * header.cantidad_sectores + cabeza * header.cantidad_sectores + sector) * header.tamano_sector;
+
+    // Desplazarse a la posición de escritura
+    fseek(archivo, posicion, SEEK_SET);
+
+    // Escribir los datos en el archivo
+    size_t bytesEscritos = fwrite(datos, 1, tamano, archivo);
+    if (bytesEscritos != tamano) {
+        printf("Error al escribir en el archivo %s.\n", nombreArchivo);
+    }
+
+    // Cerrar el archivo
+    fclose(archivo);
+}
+
+*/
